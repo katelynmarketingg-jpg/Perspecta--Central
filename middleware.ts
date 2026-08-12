@@ -11,8 +11,10 @@ export async function middleware(req: NextRequest) {
   // rotas liberadas sempre
   if (
     pathname.startsWith("/login") ||
+    pathname.startsWith("/cadastro") ||
     pathname.startsWith("/api/login") ||
-    pathname.startsWith("/api/logout")
+    pathname.startsWith("/api/logout") ||
+    pathname.startsWith("/api/cadastro")
   ) {
     return NextResponse.next();
   }
