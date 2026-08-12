@@ -69,9 +69,11 @@ export default async function Custos() {
             <tbody>
               {sistemas.map((s) => {
                 const emps = empresas.filter((e) => e.sis === s.id && e.status !== "canc");
-                const usoMb = emps.reduce((a, e) => a + e.usoStorage, 0);
                 const limiteMb = emps.reduce((a, e) => a + (planById(e.plano)?.storage || 0), 0);
-                const info = infraCusto({ baseBrl: custoDe(s.id), usoMb, limiteMb, source: "manual" });
+                // Storage ao vivo do Supabase quando disponível; senão soma estimada das empresas.
+                const aoVivo = s.storageLiveMb != null;
+                const usoMb = aoVivo ? (s.storageLiveMb as number) : emps.reduce((a, e) => a + e.usoStorage, 0);
+                const info = infraCusto({ baseBrl: custoDe(s.id), usoMb, limiteMb, source: aoVivo ? "live" : "manual" });
                 const u = info.utilizacao;
                 if (info.baseBrl === 0 && usoMb === 0) return null;
                 return (

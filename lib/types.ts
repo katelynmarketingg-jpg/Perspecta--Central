@@ -15,6 +15,8 @@ export type Sistema = {
   versao: string;
   ultimoDeploy: { estado: "sucesso" | "erro"; quando: string } | null;
   bugs: { t: string; sev: "alta" | "media" | "baixa"; st: string; d: string }[];
+  // Storage real (MB) do projeto quando vem ao vivo do Supabase; ausente = usar estimativa.
+  storageLiveMb?: number;
 };
 
 export type Plano = {
