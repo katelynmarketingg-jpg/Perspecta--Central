@@ -1,6 +1,6 @@
 import * as mock from "./mock";
 import type { Sistema, Plano, Empresa } from "./types";
-import { supabaseConfigured, getProjectHealth } from "./integrations/supabase";
+import { supabaseConfigured, getProjectHealth, getProjectDbSizeMb } from "./integrations/supabase";
 import { vercelConfigured, getLastDeploy } from "./integrations/vercel";
 import { mercadoPagoConfigured } from "./integrations/mercadopago";
 
@@ -26,10 +26,13 @@ export async function getSistemas(): Promise<Sistema[]> {
       let status = s.status;
       let statusSource = s.statusSource;
       let ultimoDeploy = s.ultimoDeploy;
+      let storageLiveMb = s.storageLiveMb;
 
       if (s.supabaseRef && supabaseConfigured()) {
         const h = await getProjectHealth(s.supabaseRef);
         if (h) { status = h.status; statusSource = "live"; }
+        const mb = await getProjectDbSizeMb(s.supabaseRef);
+        if (mb != null) storageLiveMb = mb;
       }
       if (s.host === "Vercel" && vercelConfigured()) {
         const d = await getLastDeploy(s.repo);
@@ -39,7 +42,7 @@ export async function getSistemas(): Promise<Sistema[]> {
           else if (statusSource !== "live") { status = "operacional"; statusSource = "live"; }
         }
       }
-      return { ...s, status, statusSource, ultimoDeploy };
+      return { ...s, status, statusSource, ultimoDeploy, storageLiveMb };
     })
   );
 }

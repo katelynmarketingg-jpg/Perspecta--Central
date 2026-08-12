@@ -1,6 +1,7 @@
 import { Card, Kpi, Pill, SourceTag, Icon } from "@/components/ui";
-import { getSistemas, getEmpresas, getCustos, receitaSistema } from "@/lib/data";
-import { BRL, pct, nomeCurto } from "@/lib/format";
+import { getSistemas, getEmpresas, getCustos, receitaSistema, planById } from "@/lib/data";
+import { BRL, pct, nomeCurto, fmtStorage } from "@/lib/format";
+import { infraCusto } from "@/lib/precos";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,44 @@ export default async function Custos() {
                     <td className="r num" style={{ color: m < 0 ? "var(--crit)" : "var(--accent)", fontWeight: 650 }}>{pct(m)}</td>
                     <td className="r num">{BRL(c / (emps.length || 1))}</td>
                     <td className="r num">{BRL(c / logins)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Card title="Custo por projeto e por MB — uso × preço"
+        hint="quanto custa cada projeto e quanto custa o espaço que usamos"
+        action={<span className="hint">uso ao vivo destrava com Supabase/Vercel</span>}>
+        <div className="banner" style={{ margin: "0 0 4px" }}>
+          <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
+          <span>Vercel e Supabase cobram <b>por conta</b>, não por projeto — então custo por projeto é <b>rateio do custo atribuído ÷ uso</b>. Render cobra <b>por serviço</b> (tier fixo). Hoje o uso é estimativa; vira <b>ao vivo</b> quando as chaves forem conectadas.</span>
+        </div>
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Projeto</th><th>Host</th><th className="r">Custo / mês</th><th className="r">Uso</th><th className="r">Utilização</th><th className="r">Custo / GB</th><th className="r">Custo / MB</th><th>Origem</th></tr></thead>
+            <tbody>
+              {sistemas.map((s) => {
+                const emps = empresas.filter((e) => e.sis === s.id && e.status !== "canc");
+                const limiteMb = emps.reduce((a, e) => a + (planById(e.plano)?.storage || 0), 0);
+                // Storage ao vivo do Supabase quando disponível; senão soma estimada das empresas.
+                const aoVivo = s.storageLiveMb != null;
+                const usoMb = aoVivo ? (s.storageLiveMb as number) : emps.reduce((a, e) => a + e.usoStorage, 0);
+                const info = infraCusto({ baseBrl: custoDe(s.id), usoMb, limiteMb, source: aoVivo ? "live" : "manual" });
+                const u = info.utilizacao;
+                if (info.baseBrl === 0 && usoMb === 0) return null;
+                return (
+                  <tr key={s.id}>
+                    <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{nomeCurto(s.nome)}</span></td>
+                    <td style={{ color: "var(--muted)" }}>{s.host}</td>
+                    <td className="r num">{BRL(info.baseBrl)}</td>
+                    <td className="r num">{fmtStorage(info.usoMb)}{limiteMb ? " / " + fmtStorage(limiteMb) : ""}</td>
+                    <td className="r num" style={{ color: u >= 0.9 ? "var(--crit)" : u >= 0.75 ? "var(--warn)" : "var(--muted)" }}>{limiteMb ? pct(u) : "—"}</td>
+                    <td className="r num">{info.custoPorGb > 0 ? BRL(info.custoPorGb) : "—"}</td>
+                    <td className="r num" style={{ color: "var(--accent)", fontWeight: 600 }}>{info.custoPorMb > 0 ? "R$ " + info.custoPorMb.toFixed(3).replace(".", ",") : "—"}</td>
+                    <td><SourceTag source={info.source} /></td>
                   </tr>
                 );
               })}
