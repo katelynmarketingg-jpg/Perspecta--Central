@@ -1,9 +1,11 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, listSupabaseTables, findKeyTables } from "@/lib/integrations/supabase";
+import { firebaseConfigured, findFirestoreCollections } from "@/lib/integrations/firebase";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 // Banco de dados de cada sistema (derivado do host e do supabaseRef).
 function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
@@ -29,6 +31,8 @@ export default async function Dados() {
   const tabelas = refSupabase && supabaseConfigured() ? await listSupabaseTables(refSupabase) : null;
   // Localiza onde estão os clientes e logins.
   const chaves = refSupabase && supabaseConfigured() ? await findKeyTables(refSupabase) : null;
+  // Bistro no Firebase: coleções do Firestore.
+  const firestore = firebaseConfigured() ? await findFirestoreCollections() : null;
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
   const linhas = sistemas.map((s) => {
@@ -117,6 +121,43 @@ export default async function Dados() {
                             const v = r[c];
                             const txt = v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
                             return <td key={c} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{txt.length > 50 ? txt.slice(0, 50) + "…" : txt}</td>;
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })}
+        </>
+      )}
+
+      {firestore && firestore.length > 0 && (
+        <>
+          <div className="sec-title" style={{ marginTop: 4 }}>
+            <h3 style={{ fontSize: 15, margin: 0 }}>Bistro — Firestore (Firebase)</h3>
+            <span className="c">{firestore.length} coleções · ao vivo</span>
+          </div>
+          <div className="banner">
+            <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
+            <span>Coleções lidas <b>ao vivo</b> do Firebase do Bistro. É aqui que está a Aliança — cada coleção vira candidata a clientes/logins do Bistro.</span>
+          </div>
+          {firestore.map((c) => {
+            const cols = Array.from(new Set(c.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
+            return (
+              <Card key={c.colecao} title={c.colecao} hint={`${c.amostra.length}+ documentos`} action={<Pill s="ativo" label="Firestore" />}>
+                <div className="tablewrap">
+                  <table>
+                    <thead><tr>{cols.map((col) => <th key={col}>{col}</th>)}</tr></thead>
+                    <tbody>
+                      {c.amostra.map((r: any, i: number) => (
+                        <tr key={i}>
+                          {cols.map((col) => {
+                            if (mascarar(col)) return <td key={col} style={{ color: "var(--faint)" }}>•••</td>;
+                            const v = r[col];
+                            const txt = v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
+                            return <td key={col} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{txt.length > 50 ? txt.slice(0, 50) + "…" : txt}</td>;
                           })}
                         </tr>
                       ))}
