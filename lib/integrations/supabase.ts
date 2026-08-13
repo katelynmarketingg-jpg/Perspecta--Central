@@ -80,6 +80,14 @@ export async function findKeyTables(ref: string): Promise<
   return results.filter(Boolean) as { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[];
 }
 
+// Diagnóstico: confirma se o token consegue consultar o banco.
+export async function supabaseStatus(ref: string): Promise<{ configurado: boolean; ok: boolean; tabelas: number }> {
+  if (!supabaseConfigured() || !ref) return { configurado: supabaseConfigured(), ok: false, tabelas: 0 };
+  const rows = await runSupabaseQuery(ref, "select count(*)::int as n from information_schema.tables where table_schema = 'public';");
+  const ok = Array.isArray(rows) && rows.length > 0;
+  return { configurado: true, ok, tabelas: ok ? Number(rows[0].n) || 0 : 0 };
+}
+
 // Lê as linhas das tabelas que representam clientes/empresas (nome+email ou
 // nome de tabela tipo customers/clients/empresas). Até 50 linhas por tabela.
 export async function getClientRows(ref: string): Promise<{ tabela: string; rows: any[] }[] | null> {

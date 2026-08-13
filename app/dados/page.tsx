@@ -1,7 +1,7 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
-import { supabaseConfigured, listSupabaseTables, findKeyTables } from "@/lib/integrations/supabase";
-import { firebaseConfigured, findFirestoreCollections } from "@/lib/integrations/firebase";
+import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
+import { firebaseConfigured, findFirestoreCollections, firebaseStatus } from "@/lib/integrations/firebase";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -30,10 +30,12 @@ export default async function Dados() {
   // Prova de conexão ao vivo: nº de tabelas no Supabase compartilhado.
   const refSupabase = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   // Roda tudo em paralelo para não estourar o tempo de execução.
-  const [tabelas, chaves, firestore] = await Promise.all([
+  const [tabelas, chaves, firestore, supaSt, fireSt] = await Promise.all([
     refSupabase && supabaseConfigured() ? listSupabaseTables(refSupabase) : Promise.resolve(null),
     refSupabase && supabaseConfigured() ? findKeyTables(refSupabase) : Promise.resolve(null),
     firebaseConfigured() ? findFirestoreCollections() : Promise.resolve(null),
+    refSupabase ? supabaseStatus(refSupabase) : Promise.resolve({ configurado: supabaseConfigured(), ok: false, tabelas: 0 }),
+    firebaseStatus(),
   ]);
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
@@ -55,6 +57,28 @@ export default async function Dados() {
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
         <span>Mapa real: <b>onde cada sistema roda</b>, <b>qual banco</b> usa e o <b>custo de infra</b>.{tabelas ? ` Supabase conectado ao vivo — ${tabelas.length} tabelas no projeto Commerce+Juris.` : ""}</span>
       </div>
+
+      <Card title="Diagnóstico de conexão" hint="cada integração conectou de verdade?">
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Integração</th><th>Status</th><th className="r">Encontrado</th><th>Detalhe</th></tr></thead>
+            <tbody>
+              <tr>
+                <td style={{ fontWeight: 600 }}>Supabase (Commerce+Juris)</td>
+                <td>{!supaSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : supaSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
+                <td className="r num">{supaSt.ok ? `${supaSt.tabelas} tabelas` : "—"}</td>
+                <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{!supaSt.configurado ? "configure SUPABASE_MANAGEMENT_TOKEN" : supaSt.ok ? "lendo o banco ao vivo" : "token sem permissão de query ou projeto pausado"}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 600 }}>Firebase (Bistro)</td>
+                <td>{!fireSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : fireSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
+                <td className="r num">{fireSt.ok ? `${fireSt.colecoes} coleções` : "—"}</td>
+                <td style={{ color: fireSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!fireSt.configurado ? "configure FIREBASE_SERVICE_ACCOUNT" : fireSt.ok ? "lendo o Firestore ao vivo" : (fireSt.erro || "falha ao conectar")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Card title="Infraestrutura & custo por sistema" hint="hospedagem · banco · custo real">
         <div className="tablewrap">
