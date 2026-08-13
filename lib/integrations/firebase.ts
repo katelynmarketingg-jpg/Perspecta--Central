@@ -18,6 +18,20 @@ function getApp(): admin.app.App | null {
   }
 }
 
+// Diagnóstico: diz se o Firebase conectou de verdade (e por que não, se falhar).
+export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
+  if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
+  try {
+    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa) });
+    const cols = await admin.firestore(app).listCollections();
+    return { configurado: true, ok: true, colecoes: cols.length };
+  } catch (e: any) {
+    const msg = String(e?.message || e || "falha");
+    return { configurado: true, ok: false, colecoes: 0, erro: msg.slice(0, 140) };
+  }
+}
+
 // Converte um documento do Firestore em objeto seguro para exibir (datas viram ISO).
 function safeDoc(id: string, data: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = { id };
