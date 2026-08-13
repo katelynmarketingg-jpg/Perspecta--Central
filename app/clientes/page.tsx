@@ -53,11 +53,28 @@ export default async function Clientes() {
     firebaseConfigured() ? getFirestoreClientDocs() : Promise.resolve(null),
   ]);
 
+  // Classifica um registro do banco compartilhado entre Commerce e Juris pelo
+  // conteúdo: coisas de advogado/jurídico ou "karen" -> Juris; o resto -> Commerce.
+  const JURIS = /advog|jur[íi]dic|advocacia|processo|\boab\b|direito|criminal|escrit[óo]rio|c[áa]lculo|peticao|petição|karen/i;
+  function classifica(row: Record<string, any>, fonte: string, sisList: typeof sistemas): { nome: string; cor: string } {
+    const juris = sisList.find((s) => s.id === "juris");
+    const commerce = sisList.find((s) => s.id === "commerce");
+    const texto = (fonte + " " + Object.values(row).filter((v) => typeof v === "string").join(" ")).toLowerCase();
+    if (juris && JURIS.test(texto)) return { nome: nomeCurto(juris.nome), cor: juris.cor };
+    const alvo = commerce || juris || sisList[0];
+    return { nome: alvo ? nomeCurto(alvo.nome) : "—", cor: alvo?.cor || "var(--accent)" };
+  }
+
   const clientes: Cli[] = [];
   for (const { sis, tabelas } of supa) {
+    const compartilhado = sis.length > 1; // Commerce + Juris no mesmo banco
     const nomeSis = sis.map((x) => nomeCurto(x.nome)).join(" / ");
     const cor = sis[0]?.cor || "var(--accent)";
-    for (const t of tabelas || []) for (const r of t.rows) clientes.push(normaliza(r, nomeSis, cor, t.tabela));
+    for (const t of tabelas || [])
+      for (const r of t.rows) {
+        const c = compartilhado ? classifica(r, t.tabela, sis) : { nome: nomeSis, cor };
+        clientes.push(normaliza(r, c.nome, c.cor, t.tabela));
+      }
   }
   for (const c of fire || []) {
     const nomeSis = bistro ? nomeCurto(bistro.nome) : "Bistro";
