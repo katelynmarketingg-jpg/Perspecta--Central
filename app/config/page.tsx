@@ -67,7 +67,7 @@ export default function Config() {
         <Card title="Render">
           <div className="card-b">
             <p style={{ color: "var(--muted)", fontSize: 13, margin: 0 }}>
-              O <b>Juris</b> roda no Render (sem integração de uso ao vivo hoje). O custo por serviço é <b>direto</b> (o tier tem preço fixo, ver tabela acima); o uso entra <b>manualmente</b> até haver API — marcado como estimativa. <b>Bistro</b> usa Firebase e <b>Creator</b> ainda não está publicado.
+              <b>Juris</b> e <b>Creator</b> rodam no Render (sem integração de uso ao vivo hoje). O custo por serviço é <b>direto</b> (o tier tem preço fixo, ver tabela acima); o uso entra <b>manualmente</b> até haver API — marcado como estimativa. <b>Bistro</b> usa Firebase.
             </p>
           </div>
         </Card>
