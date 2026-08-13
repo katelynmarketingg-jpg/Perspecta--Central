@@ -7,11 +7,30 @@ export function firebaseConfigured(): boolean {
   return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
 }
 
+// Faz o parse tolerante da chave: se a colagem tiver lixo antes/depois ou
+// estiver duplicada, extrai o 1º objeto JSON balanceado e ignora o resto.
+function parseServiceAccount(raw: string): any {
+  try { return JSON.parse(raw); } catch {}
+  const start = raw.indexOf("{");
+  if (start < 0) throw new Error("chave sem JSON válido");
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < raw.length; i++) {
+    const ch = raw[i];
+    if (esc) { esc = false; continue; }
+    if (ch === "\\") { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") { depth--; if (depth === 0) return JSON.parse(raw.slice(start, i + 1)); }
+  }
+  throw new Error("JSON da chave incompleto");
+}
+
 function getApp(): admin.app.App | null {
   if (!firebaseConfigured()) return null;
   try {
     if (admin.apps.length) return admin.app();
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+    const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT as string);
     return admin.initializeApp({ credential: admin.credential.cert(sa) });
   } catch {
     return null;
@@ -22,7 +41,7 @@ function getApp(): admin.app.App | null {
 export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
   if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
   try {
-    const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+    const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT as string);
     const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa) });
     const cols = await admin.firestore(app).listCollections();
     return { configurado: true, ok: true, colecoes: cols.length };
