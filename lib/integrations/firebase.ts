@@ -4,7 +4,16 @@ import admin from "firebase-admin";
 // Enquanto FIREBASE_SERVICE_ACCOUNT não estiver setado, o Central usa mock.
 
 export function firebaseConfigured(): boolean {
-  return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT);
+  return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_SERVICE_ACCOUNT_B64);
+}
+
+// Fonte da chave: prefere a versão em base64 (à prova de colagem), senão o JSON cru.
+function rawServiceAccount(): string | null {
+  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
+  if (b64) {
+    try { return Buffer.from(b64.trim(), "base64").toString("utf8"); } catch { return null; }
+  }
+  return process.env.FIREBASE_SERVICE_ACCOUNT || null;
 }
 
 // Faz o parse tolerante da chave: se a colagem tiver lixo antes/depois ou
@@ -30,7 +39,7 @@ function getApp(): admin.app.App | null {
   if (!firebaseConfigured()) return null;
   try {
     if (admin.apps.length) return admin.app();
-    const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+    const sa = parseServiceAccount(rawServiceAccount() as string);
     return admin.initializeApp({ credential: admin.credential.cert(sa) });
   } catch {
     return null;
@@ -41,7 +50,7 @@ function getApp(): admin.app.App | null {
 export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
   if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
   try {
-    const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+    const sa = parseServiceAccount(rawServiceAccount() as string);
     const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa) });
     const cols = await admin.firestore(app).listCollections();
     return { configurado: true, ok: true, colecoes: cols.length };
