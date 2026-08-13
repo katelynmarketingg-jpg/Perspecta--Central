@@ -79,6 +79,30 @@ export async function findKeyTables(ref: string): Promise<
   return out;
 }
 
+// Lê as linhas das tabelas que representam clientes/empresas (nome+email ou
+// nome de tabela tipo customers/clients/empresas). Até 50 linhas por tabela.
+export async function getClientRows(ref: string): Promise<{ tabela: string; rows: any[] }[] | null> {
+  const cands = await runSupabaseQuery(
+    ref,
+    `select table_name
+     from information_schema.columns
+     where table_schema = 'public'
+     group by table_name
+     having (bool_or(column_name ~* '^(name|nome|razao_social|razao|nome_fantasia|full_name|fantasia)$')
+             and bool_or(column_name ~* 'email'))
+        or table_name ~* 'client|customer|empresa|cliente|tenant|company|conta|account'
+     order by table_name;`
+  );
+  if (!cands) return null;
+  const out: { tabela: string; rows: any[] }[] = [];
+  for (const c of cands.slice(0, 12)) {
+    const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 50;`);
+    const r = (rows || []).map((o: any) => o.r).filter(Boolean);
+    if (r.length) out.push({ tabela: String(c.table_name), rows: r });
+  }
+  return out;
+}
+
 // Lista as tabelas reais (schema public) do projeto, com estimativa de linhas.
 export async function listSupabaseTables(ref: string): Promise<{ tabela: string; linhas: number }[] | null> {
   const rows = await runSupabaseQuery(
