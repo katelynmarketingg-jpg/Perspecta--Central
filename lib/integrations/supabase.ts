@@ -49,6 +49,36 @@ export async function runSupabaseQuery(ref: string, sql: string): Promise<any[] 
   }
 }
 
+// Localiza tabelas que parecem guardar clientes/empresas ou usuários/logins
+// (pelas colunas), com uma amostra de linhas — para descobrir ONDE cada dado mora.
+export async function findKeyTables(ref: string): Promise<
+  { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[] | null
+> {
+  const cands = await runSupabaseQuery(
+    ref,
+    `select table_name,
+       string_agg(column_name, ', ' order by ordinal_position) as cols,
+       bool_or(column_name ~* 'cliente|empresa|company|razao|customer|tenant') as tem_cliente,
+       bool_or(column_name ~* 'user|login|usuario|senha|password|auth') as tem_login
+     from information_schema.columns
+     where table_schema = 'public'
+       and column_name ~* 'nome|name|email|cliente|empresa|company|razao|customer|tenant|user|login|usuario|senha|password|phone|telefone|documento|cpf|cnpj'
+     group by table_name
+     order by table_name;`
+  );
+  if (!cands) return null;
+
+  const out: { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[] = [];
+  for (const c of cands.slice(0, 20)) {
+    const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 3;`);
+    const amostra = (rows || []).map((o: any) => o.r).filter(Boolean);
+    if (amostra.length === 0) continue;
+    const tipo = c.tem_cliente && c.tem_login ? "ambos" : c.tem_login ? "logins" : "clientes";
+    out.push({ tabela: String(c.table_name), colunas: String(c.cols), tipo, amostra });
+  }
+  return out;
+}
+
 // Lista as tabelas reais (schema public) do projeto, com estimativa de linhas.
 export async function listSupabaseTables(ref: string): Promise<{ tabela: string; linhas: number }[] | null> {
   const rows = await runSupabaseQuery(

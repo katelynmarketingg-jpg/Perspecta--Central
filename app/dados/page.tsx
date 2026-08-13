@@ -1,6 +1,6 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
-import { supabaseConfigured, listSupabaseTables } from "@/lib/integrations/supabase";
+import { supabaseConfigured, listSupabaseTables, findKeyTables } from "@/lib/integrations/supabase";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,9 @@ export default async function Dados() {
   // Prova de conexão ao vivo: nº de tabelas no Supabase compartilhado.
   const refSupabase = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   const tabelas = refSupabase && supabaseConfigured() ? await listSupabaseTables(refSupabase) : null;
+  // Localiza onde estão os clientes e logins.
+  const chaves = refSupabase && supabaseConfigured() ? await findKeyTables(refSupabase) : null;
+  const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
   const linhas = sistemas.map((s) => {
     const publicado = !s.url.includes("não publicado");
@@ -85,6 +88,46 @@ export default async function Dados() {
           </table>
         </div>
       </Card>
+
+      {chaves && chaves.length > 0 && (
+        <>
+          <div className="sec-title" style={{ marginTop: 4 }}>
+            <h3 style={{ fontSize: 15, margin: 0 }}>Onde estão os clientes e logins</h3>
+            <span className="c">{chaves.length} tabelas candidatas · Supabase Commerce+Juris</span>
+          </div>
+          <div className="banner">
+            <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
+            <span>O Central varreu o banco e achou estas tabelas com cara de <b>clientes</b> ou <b>logins</b>. É aqui que estão Pedro, Karen e cia. — a partir daqui a gente liga cada uma ao seu sistema. Senhas aparecem mascaradas.</span>
+          </div>
+          {chaves.map((t) => {
+            const cols = Array.from(new Set(t.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
+            const tipoLabel = t.tipo === "logins" ? "logins/usuários" : t.tipo === "ambos" ? "clientes + logins" : "clientes/empresas";
+            return (
+              <Card key={t.tabela} title={t.tabela}
+                hint={`${t.amostra.length}+ registros`}
+                action={<Pill s={t.tipo === "logins" ? "pend" : "ativo"} label={tipoLabel} />}>
+                <div className="tablewrap">
+                  <table>
+                    <thead><tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                    <tbody>
+                      {t.amostra.map((r: any, i: number) => (
+                        <tr key={i}>
+                          {cols.map((c) => {
+                            if (mascarar(c)) return <td key={c} style={{ color: "var(--faint)" }}>•••</td>;
+                            const v = r[c];
+                            const txt = v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
+                            return <td key={c} style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{txt.length > 50 ? txt.slice(0, 50) + "…" : txt}</td>;
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            );
+          })}
+        </>
+      )}
 
       <Card title="Resumo do custo de infraestrutura" hint="quanto você gasta pra manter tudo no ar">
         <div className="card-b">
