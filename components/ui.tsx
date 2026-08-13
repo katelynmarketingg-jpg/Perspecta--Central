@@ -66,7 +66,7 @@ export function Chart({ svg }: { svg: string }) {
 // ---- SVG chart builders (strings) ----
 export function barChartSvg(labels: string[], a: number[], b: number[], colA = "#e0713a", colB = "#e2604f") {
   const W = 560, H = 210, padL = 44, padR = 12, padT = 12, padB = 28, iw = W - padL - padR, ih = H - padT - padB;
-  const max = Math.max(...a, ...b) * 1.12, gw = iw / labels.length, bw = Math.min(16, gw / 3.2), gap = 5;
+  const max = (Math.max(...a, ...b, 0) || 1) * 1.12, gw = iw / labels.length, bw = Math.min(16, gw / 3.2), gap = 5;
   let g = "";
   for (let i = 0; i <= 4; i++) {
     const y = padT + ih - (ih * i / 4), val = Math.round(max * i / 4);
@@ -81,7 +81,7 @@ export function barChartSvg(labels: string[], a: number[], b: number[], colA = "
 
 export function areaChartSvg(labels: string[], data: number[], color = "#e0713a") {
   const W = 560, H = 210, padL = 40, padR = 14, padT = 14, padB = 28, iw = W - padL - padR, ih = H - padT - padB;
-  const max = Math.max(...data) * 1.1, min = Math.min(...data) * 0.9;
+  const max = (Math.max(...data, 0) || 1) * 1.1, min = Math.min(...data, 0) * 0.9;
   const X = (i: number) => padL + iw * i / (labels.length - 1);
   const Y = (v: number) => padT + ih - ((v - min) / (max - min)) * ih;
   let g = "";
