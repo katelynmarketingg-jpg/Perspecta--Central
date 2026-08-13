@@ -1,118 +1,99 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
-import { supabaseConfigured, listSupabaseTables, runSupabaseQuery } from "@/lib/integrations/supabase";
-import { nomeCurto } from "@/lib/format";
+import { supabaseConfigured, listSupabaseTables } from "@/lib/integrations/supabase";
+import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-// Leitor de dados reais: abre o(s) projeto(s) Supabase conectado(s) e mostra as
-// tabelas de verdade que existem lá — o primeiro passo para trocar mock por dados vivos.
+// Banco de dados de cada sistema (derivado do host e do supabaseRef).
+function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
+  if (supabaseRef) return { nome: "Supabase", nota: "Postgres · plano Free · compartilhado Commerce+Juris", cor: "var(--good)" };
+  if (host === "Firebase") return { nome: "Firestore", nota: "Firebase · plano Spark", cor: "var(--warn)" };
+  return { nome: "sem banco próprio", nota: "ainda usa dados de exemplo", cor: "var(--faint)" };
+}
+
+// Custo real de infra hoje. Tudo em plano gratuito, exceto Render (a confirmar o tier).
+function custoInfra(host: string, publicado: boolean): { valor: number | null; nota: string } {
+  if (!publicado) return { valor: 0, nota: "não publicado" };
+  if (host === "Vercel") return { valor: 0, nota: "Vercel Hobby · grátis" };
+  if (host === "Firebase") return { valor: 0, nota: "Firebase Spark · grátis" };
+  if (host === "Render") return { valor: null, nota: "Render · confirmar tier" };
+  return { valor: 0, nota: "—" };
+}
+
 export default async function Dados() {
   const sistemas = await getSistemas();
-  // Projetos Supabase distintos em uso, com os sistemas que compartilham cada um.
-  const refs = new Map<string, string[]>();
-  for (const s of sistemas) {
-    if (!s.supabaseRef) continue;
-    refs.set(s.supabaseRef, [...(refs.get(s.supabaseRef) || []), nomeCurto(s.nome)]);
-  }
 
-  if (!supabaseConfigured()) {
-    return (
-      <div className="card">
-        <div className="placeholder">
-          <div className="pi"><Icon path='<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/>' size={24} /></div>
-          <h3>Dados reais</h3>
-          <p>Configure o <b>SUPABASE_MANAGEMENT_TOKEN</b> na Vercel para o Central ler as tabelas reais dos seus sistemas.</p>
-        </div>
-      </div>
-    );
-  }
+  // Prova de conexão ao vivo: nº de tabelas no Supabase compartilhado.
+  const refSupabase = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
+  const tabelas = refSupabase && supabaseConfigured() ? await listSupabaseTables(refSupabase) : null;
 
-  const blocos = await Promise.all(
-    [...refs.entries()].map(async ([ref, sis]) => {
-      const tabelas = await listSupabaseTables(ref);
-      // Prévia das tabelas que têm dados (até 6 tabelas, 5 linhas cada).
-      const previews = await Promise.all(
-        (tabelas || [])
-          .filter((t) => t.linhas > 0)
-          .slice(0, 6)
-          .map(async (t) => {
-            const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${t.tabela}" x limit 5;`);
-            return { tabela: t.tabela, linhas: t.linhas, rows: (rows || []).map((o) => o.r).filter(Boolean) };
-          })
-      );
-      return { ref, sis, tabelas, previews };
-    })
-  );
+  const linhas = sistemas.map((s) => {
+    const publicado = !s.url.includes("não publicado");
+    return {
+      s,
+      publicado,
+      banco: bancoDe(s.host, s.supabaseRef),
+      custo: custoInfra(s.host, publicado),
+    };
+  });
+  const custoTotal = linhas.reduce((a, l) => a + (l.custo.valor ?? 0), 0);
+  const temRender = linhas.some((l) => l.custo.valor === null);
 
   return (
     <>
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Dados <b>ao vivo</b> lidos direto do Supabase (Management API). É o que existe de verdade nos bancos — a base para substituir o mock por clientes/logins reais.</span>
+        <span>Mapa real: <b>onde cada sistema roda</b>, <b>qual banco</b> usa e o <b>custo de infra</b>.{tabelas ? ` Supabase conectado ao vivo — ${tabelas.length} tabelas no projeto Commerce+Juris.` : ""}</span>
       </div>
 
-      {blocos.map((b) => (
-        <div key={b.ref} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div className="sec-title">
-            <h3 style={{ fontSize: 15, margin: 0 }}>Projeto Supabase</h3>
-            <span className="c" style={{ fontFamily: "var(--mono)" }}>{b.ref}</span>
-            <span className="sp">{b.sis.map((n) => <Pill key={n} s="ativo" label={n} />)}</span>
-          </div>
-
-          {b.tabelas === null ? (
-            <Card><div className="card-b"><span style={{ color: "var(--crit)" }}>Não consegui ler este projeto (token sem acesso ou projeto pausado).</span></div></Card>
-          ) : b.tabelas.length === 0 ? (
-            <Card><div className="card-b"><span style={{ color: "var(--muted)" }}>Nenhuma tabela no schema público ainda.</span></div></Card>
-          ) : (
-            <>
-              <Card title="Tabelas encontradas" hint={`${b.tabelas.length} tabelas · schema public`}>
-                <div className="tablewrap">
-                  <table>
-                    <thead><tr><th>Tabela</th><th className="r">Linhas (aprox.)</th></tr></thead>
-                    <tbody>
-                      {b.tabelas.map((t) => (
-                        <tr key={t.tabela}>
-                          <td style={{ fontFamily: "var(--mono)", fontWeight: 600 }}>{t.tabela}</td>
-                          <td className="r num" style={{ color: t.linhas > 0 ? "var(--good)" : "var(--faint)" }}>{t.linhas}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-
-              {b.previews.filter((p) => p.rows.length > 0).map((p) => {
-                const cols = Array.from(new Set(p.rows.flatMap((r: any) => Object.keys(r)))).slice(0, 8);
-                return (
-                  <Card key={p.tabela} title={p.tabela} hint={`prévia · ${p.linhas} linha(s)`}>
-                    <div className="tablewrap">
-                      <table>
-                        <thead><tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                        <tbody>
-                          {p.rows.map((r: any, i: number) => (
-                            <tr key={i}>
-                              {cols.map((c) => {
-                                const v = r[c];
-                                const txt = v === null || v === undefined ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v);
-                                return <td key={c} style={{ maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{txt.length > 60 ? txt.slice(0, 60) + "…" : txt}</td>;
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </Card>
-                );
-              })}
-            </>
-          )}
+      <Card title="Infraestrutura & custo por sistema" hint="hospedagem · banco · custo real">
+        <div className="tablewrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Sistema</th>
+                <th>Onde roda</th>
+                <th>Banco de dados</th>
+                <th className="r">Custo infra / mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {linhas.map(({ s, publicado, banco, custo }) => (
+                <tr key={s.id}>
+                  <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{nomeCurto(s.nome)}</span></td>
+                  <td>
+                    {publicado ? (
+                      <span><b style={{ color: "var(--text)" }}>{s.host}</b><span style={{ display: "block", fontSize: 11.5, color: "var(--faint)", fontFamily: "var(--mono)" }}>{s.url}</span></span>
+                    ) : (
+                      <Pill s="sem_dados" label="não publicado" />
+                    )}
+                  </td>
+                  <td>
+                    <span style={{ color: banco.cor, fontWeight: 600 }}>{banco.nome}</span>
+                    <span style={{ display: "block", fontSize: 11.5, color: "var(--faint)" }}>{banco.nota}</span>
+                  </td>
+                  <td className="r">
+                    <span className="num" style={{ fontWeight: 650, color: custo.valor === null ? "var(--warn)" : custo.valor === 0 ? "var(--good)" : "var(--text)" }}>
+                      {custo.valor === null ? "a confirmar" : custo.valor === 0 ? "grátis" : BRL(custo.valor)}
+                    </span>
+                    <span style={{ display: "block", fontSize: 11.5, color: "var(--faint)" }}>{custo.nota}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+      </Card>
 
-      {blocos.length === 0 && (
-        <Card><div className="card-b"><span style={{ color: "var(--muted)" }}>Nenhum sistema aponta para um projeto Supabase ainda.</span></div></Card>
-      )}
+      <Card title="Resumo do custo de infraestrutura" hint="quanto você gasta pra manter tudo no ar">
+        <div className="card-b">
+          <div className="cost-line"><span className="lbl">Custo de infra hoje (planos gratuitos)</span><span className="val num" style={{ color: "var(--good)" }}>{BRL(custoTotal)}{temRender ? " + Render" : ""}</span></div>
+          <p style={{ color: "var(--muted)", fontSize: 12.5, marginTop: 10 }}>
+            Sua infraestrutura está quase toda em <b>planos gratuitos</b> — Supabase Free, Vercel Hobby e Firebase Spark. Ou seja, hoje manter os sistemas no ar custa <b>≈ R$ 0</b>. O único que pode ter custo é o <b>Render</b> (onde roda o Juris). Conforme o uso crescer e os planos virarem pagos, os valores reais aparecem aqui automaticamente.
+          </p>
+        </div>
+      </Card>
     </>
   );
 }

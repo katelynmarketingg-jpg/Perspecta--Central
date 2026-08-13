@@ -1,17 +1,18 @@
+/* Paleta Perspecta Creator: preto + terracota (dark) · branco/bege + terracota (light) */
 :root {
-  --bg:#141010; --panel:#1f1813; --panel-2:#271e18; --panel-3:#34261b;
-  --border:#2c241e; --border-strong:#40332a; --text:#f1e9de; --muted:#b0a396; --faint:#7c7167;
-  --accent:#e0713a; --accent-2:#c25c2c; --accent-soft:rgba(224,113,58,0.15);
+  --bg:#0c0c0d; --panel:#151516; --panel-2:#1d1d1f; --panel-3:#292a2d;
+  --border:#252527; --border-strong:#3a3a3e; --text:#f4f1ea; --muted:#a7a39b; --faint:#6f6b64;
+  --accent:#e0713a; --accent-2:#c25c2c; --accent-soft:rgba(224,113,58,0.16);
   --good:#86a85f; --good-soft:rgba(134,168,95,0.15); --warn:#d99a44; --warn-soft:rgba(217,154,68,0.15);
-  --crit:#e2604f; --crit-soft:rgba(226,96,79,0.16); --info:#a58b6e;
-  --shadow:0 1px 2px rgba(0,0,0,0.4),0 12px 32px rgba(0,0,0,0.30);
+  --crit:#e2604f; --crit-soft:rgba(226,96,79,0.16); --info:#c8956a;
+  --shadow:0 1px 2px rgba(0,0,0,0.5),0 12px 32px rgba(0,0,0,0.45);
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 :root[data-theme="light"]{
-  --bg:#fbf9f6; --panel:#ffffff; --panel-2:#faf1ea; --panel-3:#f6e6da;
-  --border:#eee6dd; --border-strong:#dccdbd; --text:#2b2622; --muted:#7a6f65; --faint:#a99e92;
-  --accent:#d9662e; --accent-2:#bd5323; --accent-soft:rgba(217,102,46,0.11);
+  --bg:#f6f1e8; --panel:#ffffff; --panel-2:#f4ece0; --panel-3:#ece0cf;
+  --border:#e9ddcb; --border-strong:#d8c8b2; --text:#22201d; --muted:#6f665b; --faint:#a89d8d;
+  --accent:#d9662e; --accent-2:#bd5323; --accent-soft:rgba(217,102,46,0.12);
   --good:#5f8a45; --good-soft:rgba(95,138,69,0.14); --warn:#c5872c; --warn-soft:rgba(197,135,44,0.15);
   --crit:#d84b3a; --crit-soft:rgba(216,75,58,0.12); --info:#8a7358;
   --shadow:0 1px 2px rgba(40,30,20,0.05),0 8px 24px rgba(40,30,20,0.06);
