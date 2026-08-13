@@ -4,14 +4,15 @@ const GB = 1024;
 
 // Os 7 sistemas do spec. status/statusSource ficam "sem_dados"/"mock" enquanto
 // as integrações (Supabase Mgmt / Vercel) não estão configuradas.
+// Os 6 sistemas reais da Perspecta. supabaseRef aponta para o projeto Supabase
+// real quando o sistema usa Supabase; Commerce e Juris compartilham o mesmo projeto.
 export const sistemas: Sistema[] = [
-  { id: "commerce", nome: "Perspecta Commerce", cor: "#c9954f", url: "commerce.perspecta.com.br", repo: "perspecta-commerce", host: "Vercel", supabaseRef: "ndzdhseravwdcdfuroda", status: "sem_dados", statusSource: "mock", uptime: 99.92, versao: "1.8.0", ultimoDeploy: { estado: "sucesso", quando: "há 2 dias" }, bugs: [{ t: "Sincronização de estoque com atraso de ~3min", sev: "media", st: "aberto", d: "há 1 dia" }] },
-  { id: "central", nome: "Perspecta Central", cor: "#e0713a", url: "perspecta-central.vercel.app", repo: "perspecta-central", host: "Vercel", supabaseRef: "cntl-xxxx", status: "operacional", statusSource: "mock", uptime: 100, versao: "0.1.0", ultimoDeploy: { estado: "sucesso", quando: "hoje" }, bugs: [] },
-  { id: "juris", nome: "Perspeccta Juris", cor: "#d98a52", url: "juris.perspecta.com.br", repo: "perspecta-juris", host: "Render", supabaseRef: "jrs-xxxx", status: "sem_dados", statusSource: "mock", uptime: 99.97, versao: "2.4.1", ultimoDeploy: null, bugs: [{ t: "Exportação de PDF trava em processos > 200 págs", sev: "alta", st: "aberto", d: "há 2 dias" }] },
-  { id: "creator", nome: "Perspecta Creator", cor: "#e0713a", url: "saas-agency.onrender.com", repo: "perspecta-creator", host: "Render", supabaseRef: null, status: "degradado", statusSource: "mock", uptime: 99.40, versao: "3.1.2", ultimoDeploy: null, bugs: [{ t: "Gráfico Receitas × Despesas não renderiza no 1º load", sev: "alta", st: "aberto", d: "há 3 horas" }] },
-  { id: "bistro", nome: "Perspecta Bistro", cor: "#a64f2e", url: "bistro.perspecta.com.br", repo: "perspecta-bistro", host: "Vercel", supabaseRef: "bstr-xxxx", status: "sem_dados", statusSource: "mock", uptime: 99.88, versao: "0.6.2", ultimoDeploy: { estado: "sucesso", quando: "há 5 dias" }, bugs: [] },
-  { id: "hub", nome: "Perspecta Hub", cor: "#8a6f4f", url: "hub.perspecta.com.br", repo: "perspecta-hub", host: "Vercel", supabaseRef: "hub-xxxx", status: "sem_dados", statusSource: "mock", uptime: 99.95, versao: "0.4.0", ultimoDeploy: { estado: "sucesso", quando: "há 1 dia" }, bugs: [] },
-  { id: "saude", nome: "Perspecta Saúde", cor: "#b5713a", url: "saude.perspecta.com.br", repo: "perspecta-saude", host: "Vercel", supabaseRef: "sde-xxxx", status: "sem_dados", statusSource: "mock", uptime: 99.99, versao: "0.9.6", ultimoDeploy: { estado: "sucesso", quando: "há 3 dias" }, bugs: [] },
+  { id: "commerce", nome: "Perspecta Commerce", cor: "#c9954f", url: "perspecta-commerce.vercel.app", repo: "perspecta-commerce", host: "Vercel", supabaseRef: "ndzdhseravwdcdfuroda", status: "sem_dados", statusSource: "mock", uptime: 99.92, versao: "1.8.0", ultimoDeploy: { estado: "sucesso", quando: "há 2 dias" }, bugs: [{ t: "Sincronização de estoque com atraso de ~3min", sev: "media", st: "aberto", d: "há 1 dia" }] },
+  { id: "central", nome: "Perspecta Central", cor: "#e0713a", url: "perspecta-central.vercel.app", repo: "perspecta-central", host: "Vercel", supabaseRef: null, status: "operacional", statusSource: "mock", uptime: 100, versao: "0.1.0", ultimoDeploy: { estado: "sucesso", quando: "hoje" }, bugs: [] },
+  { id: "juris", nome: "Perspecta Juris", cor: "#d98a52", url: "perspecta-juris.onrender.com", repo: "perspecta-juris", host: "Render", supabaseRef: "ndzdhseravwdcdfuroda", status: "sem_dados", statusSource: "mock", uptime: 99.97, versao: "2.4.1", ultimoDeploy: null, bugs: [{ t: "Exportação de PDF trava em processos > 200 págs", sev: "alta", st: "aberto", d: "há 2 dias" }] },
+  { id: "creator", nome: "Perspecta Creator", cor: "#e0713a", url: "não publicado · só no GitHub", repo: "perspecta-creator", host: "Vercel", supabaseRef: null, status: "sem_dados", statusSource: "mock", uptime: 99.40, versao: "3.1.2", ultimoDeploy: null, bugs: [] },
+  { id: "bistro", nome: "Perspecta Bistro", cor: "#a64f2e", url: "perspecta-bistro.web.app", repo: "perspecta-bistro", host: "Firebase", supabaseRef: null, status: "sem_dados", statusSource: "mock", uptime: 99.88, versao: "0.6.2", ultimoDeploy: { estado: "sucesso", quando: "há 5 dias" }, bugs: [] },
+  { id: "hub", nome: "Perspecta Hub (CRM)", cor: "#8a6f4f", url: "perspectahub.com.br", repo: "perspecta-hub-crm", host: "Vercel", supabaseRef: null, status: "sem_dados", statusSource: "mock", uptime: 99.95, versao: "0.4.0", ultimoDeploy: { estado: "sucesso", quando: "há 1 dia" }, bugs: [] },
 ];
 
 export const planos: Plano[] = [
@@ -23,8 +24,6 @@ export const planos: Plano[] = [
   { id: "p7", sis: "creator", nome: "Starter", valor: 129, storage: 5 * GB, logins: 3, registros: 3000 },
   { id: "p8", sis: "creator", nome: "Studio", valor: 349, storage: 25 * GB, logins: 10, registros: 15000 },
   { id: "p9", sis: "creator", nome: "Agência", valor: 699, storage: 60 * GB, logins: 30, registros: 60000 },
-  { id: "p10", sis: "saude", nome: "Básico", valor: 179, storage: 5 * GB, logins: 5, registros: 2000 },
-  { id: "p11", sis: "saude", nome: "Clínica", valor: 449, storage: 20 * GB, logins: 15, registros: 12000 },
   { id: "p12", sis: "bistro", nome: "Casa", valor: 189, storage: 8 * GB, logins: 6, registros: 4000 },
   { id: "p13", sis: "hub", nome: "Hub Pro", valor: 259, storage: 12 * GB, logins: 8, registros: 6000 },
 ];
@@ -38,8 +37,6 @@ export const empresas: Empresa[] = [
   { id: "e7", nome: "Gelo Patrulha", email: "contato@gelopatrulha.com", sis: "creator", plano: "p8", adeptos: 9, status: "ativo", venc: "15/08", usoStorage: 19 * GB, usoReg: 11200, usoLogins: 8 },
   { id: "e8", nome: "Marcelo Lemos Advocacia", email: "marcelo@lemosadv.com.br", sis: "creator", plano: "p9", adeptos: 24, status: "ativo", venc: "20/08", usoStorage: 38 * GB, usoReg: 41000, usoLogins: 22 },
   { id: "e9", nome: "Perfume Prateado", email: "adm@perfumeprateado.com", sis: "creator", plano: "p7", adeptos: 3, status: "pend", venc: "10/08", usoStorage: 2.1 * GB, usoReg: 1400, usoLogins: 2 },
-  { id: "e10", nome: "Clínica Vitalis", email: "gestao@vitalis.com.br", sis: "saude", plano: "p11", adeptos: 11, status: "ativo", venc: "10/08", usoStorage: 11 * GB, usoReg: 8200, usoLogins: 9 },
-  { id: "e11", nome: "Odonto Sorriso", email: "contato@odontosorriso.com.br", sis: "saude", plano: "p10", adeptos: 5, status: "ativo", venc: "25/08", usoStorage: 2.3 * GB, usoReg: 1100, usoLogins: 5 },
   { id: "e12", nome: "Cantina do Porto", email: "contato@cantinaporto.com.br", sis: "bistro", plano: "p12", adeptos: 7, status: "ativo", venc: "14/08", usoStorage: 3.4 * GB, usoReg: 2600, usoLogins: 6 },
   { id: "e13", nome: "Studio Vega", email: "ola@studiovega.com.br", sis: "hub", plano: "p13", adeptos: 8, status: "ativo", venc: "16/08", usoStorage: 5.1 * GB, usoReg: 3400, usoLogins: 7 },
 ];
@@ -50,7 +47,6 @@ export const custos: Custo[] = [
   { sis: "commerce", nome: "Vercel (hospedagem)", valor: 40, fonte: "Vercel", source: "mock" },
   { sis: "juris", nome: "Render (web service)", valor: 85, fonte: "Render", source: "manual" },
   { sis: "creator", nome: "Render (web service)", valor: 92, fonte: "Render", source: "manual" },
-  { sis: "saude", nome: "Supabase (projeto Saúde)", valor: 60, fonte: "Supabase", source: "mock" },
   { sis: "bistro", nome: "Supabase (projeto Bistro)", valor: 45, fonte: "Supabase", source: "mock" },
   { sis: "hub", nome: "Supabase (projeto Hub)", valor: 50, fonte: "Supabase", source: "mock" },
   { sis: null, nome: "Anthropic / Claude (IA)", valor: 120, fonte: "Anthropic", source: "manual" },
@@ -62,10 +58,8 @@ export const pagamentos: Pagamento[] = [
   { id: "pg2", emp: "e2", valor: 997, status: "vencido", metodo: "Boleto", data: "28/07", motivo: "Boleto não compensado há 13 dias", tentativas: [{ data: "28/07", resultado: "gerado" }, { data: "04/08", resultado: "sem baixa" }] },
   { id: "pg3", emp: "e5", valor: 397, status: "pago", metodo: "Cartão", data: "06/08" },
   { id: "pg4", emp: "e8", valor: 699, status: "falhou", metodo: "Cartão", data: "07/08", motivo: "Cartão recusado — saldo insuficiente", tentativas: [{ data: "07/08", resultado: "recusado" }, { data: "09/08", resultado: "recusado" }] },
-  { id: "pg5", emp: "e10", valor: 449, status: "pago", metodo: "Pix", data: "04/08" },
   { id: "pg6", emp: "e9", valor: 129, status: "pendente", metodo: "Cartão", data: "10/08", motivo: "Aguardando 1º pagamento" },
   { id: "pg7", emp: "e7", valor: 349, status: "pago", metodo: "Cartão", data: "05/08" },
-  { id: "pg9", emp: "e11", valor: 179, status: "pago", metodo: "Pix", data: "09/08" },
 ];
 
 export const loginAttempts: LoginAttempt[] = [
@@ -76,14 +70,12 @@ export const loginAttempts: LoginAttempt[] = [
   { emp: "e8", usuario: "marcelo@lemosadv.com.br", sis: "creator", resultado: "falha", motivo: "usuário bloqueado", quando: "10/08 22:01", ip: "45.7.201.9" },
   { emp: "e8", usuario: "equipe@lemosadv.com.br", sis: "creator", resultado: "sucesso", quando: "11/08 07:30", ip: "45.7.201.9" },
   { emp: "e5", usuario: "ti@bompreco.com.br", sis: "commerce", resultado: "sucesso", quando: "11/08 10:15", ip: "177.9.44.2" },
-  { emp: "e10", usuario: "gestao@vitalis.com.br", sis: "saude", resultado: "falha", motivo: "token expirado", quando: "11/08 06:50", ip: "191.5.7.30" },
 ];
 
 export const tickets: Ticket[] = [
   { id: "t1", emp: "e1", sis: "juris", subj: "Erro ao exportar processo em PDF", prev: "Quando tento gerar o PDF do processo aparece um erro…", prio: "alta", st: "aberto" },
   { id: "t2", emp: "e5", sis: "commerce", subj: "Integração com NF-e", prev: "Preciso de ajuda para configurar a emissão…", prio: "media", st: "aberto" },
   { id: "t3", emp: "e8", sis: "creator", subj: "Gráfico não carrega no primeiro acesso", prev: "O gráfico de receitas aparece vazio até eu recarregar…", prio: "alta", st: "em_andamento" },
-  { id: "t4", emp: "e10", sis: "saude", subj: "Dúvida sobre limite de usuários", prev: "Quantos adeptos o plano Clínica permite?", prio: "baixa", st: "aberto" },
 ];
 
 export const serie = {

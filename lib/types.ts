@@ -7,7 +7,7 @@ export type Sistema = {
   cor: string;
   url: string;
   repo: string;
-  host: "Vercel" | "Render";
+  host: "Vercel" | "Render" | "Firebase";
   supabaseRef: string | null; // null = não usa Supabase (ex.: Creator/SQLite)
   status: "operacional" | "degradado" | "com_erro" | "sem_dados";
   statusSource: Source;
