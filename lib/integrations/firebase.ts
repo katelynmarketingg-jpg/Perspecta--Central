@@ -45,13 +45,13 @@ export async function getFirestoreClientDocs(): Promise<{ colecao: string; rows:
     const nomeCliente = /client|customer|empresa|cliente|tenant|company|conta|account/i;
     let alvo = cols.filter((c) => nomeCliente.test(c.id));
     if (alvo.length === 0) alvo = cols.slice(0, 10);
-    const out: { colecao: string; rows: any[] }[] = [];
-    for (const col of alvo) {
-      const snap = await col.limit(50).get();
-      if (snap.empty) continue;
-      out.push({ colecao: col.id, rows: snap.docs.map((d) => safeDoc(d.id, d.data())) });
-    }
-    return out;
+    const results = await Promise.all(
+      alvo.map(async (col) => {
+        const snap = await col.limit(50).get();
+        return snap.empty ? null : { colecao: col.id, rows: snap.docs.map((d) => safeDoc(d.id, d.data())) };
+      })
+    );
+    return results.filter(Boolean) as { colecao: string; rows: any[] }[];
   } catch {
     return null;
   }
@@ -65,13 +65,13 @@ export async function findFirestoreCollections(): Promise<{ colecao: string; amo
   try {
     const db = admin.firestore(app);
     const cols = await db.listCollections();
-    const out: { colecao: string; amostra: any[] }[] = [];
-    for (const col of cols.slice(0, 30)) {
-      const snap = await col.limit(3).get();
-      if (snap.empty) continue;
-      out.push({ colecao: col.id, amostra: snap.docs.map((d) => safeDoc(d.id, d.data())) });
-    }
-    return out;
+    const results = await Promise.all(
+      cols.slice(0, 30).map(async (col) => {
+        const snap = await col.limit(3).get();
+        return snap.empty ? null : { colecao: col.id, amostra: snap.docs.map((d) => safeDoc(d.id, d.data())) };
+      })
+    );
+    return results.filter(Boolean) as { colecao: string; amostra: any[] }[];
   } catch {
     return null;
   }

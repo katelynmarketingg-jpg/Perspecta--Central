@@ -6,6 +6,7 @@ import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Pega o 1º valor de um registro cujo nome de coluna casa com o padrão.
 function pick(row: Record<string, any>, re: RegExp): any {
@@ -41,7 +42,7 @@ export default async function Clientes() {
           clientes: t.rows.map((r) => ({
             nome: String(pick(r, /^(name|nome|razao|fantasia|full_name|title|razao_social|nome_fantasia)/i) ?? pick(r, /nome|name/i) ?? r.id ?? "—"),
             contato: pick(r, /email/i) ?? pick(r, /phone|telefone|celular|whatsapp/i),
-            valor: pick(r, /valor|amount|preco|price|total|mensalidade|monthly|plan/i),
+            valor: pick(r, /valor|amount|preco|price|total|mensalidade|monthly/i),
             fonte: t.tabela,
             sistemas: nomesSis,
             cor,
@@ -64,7 +65,7 @@ export default async function Clientes() {
         clientes: c.rows.map((r) => ({
           nome: String(pick(r, /^(name|nome|razao|fantasia|full_name|title)/i) ?? pick(r, /nome|name/i) ?? r.id ?? "—"),
           contato: pick(r, /email/i) ?? pick(r, /phone|telefone|celular|whatsapp/i),
-          valor: pick(r, /valor|amount|preco|price|total|mensalidade|monthly|plan/i),
+          valor: pick(r, /valor|amount|preco|price|total|mensalidade|monthly/i),
           fonte: c.colecao,
           sistemas: bistro ? nomeCurto(bistro.nome) : "Bistro",
           cor,

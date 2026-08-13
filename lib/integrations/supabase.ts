@@ -68,15 +68,16 @@ export async function findKeyTables(ref: string): Promise<
   );
   if (!cands) return null;
 
-  const out: { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[] = [];
-  for (const c of cands.slice(0, 20)) {
-    const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 3;`);
-    const amostra = (rows || []).map((o: any) => o.r).filter(Boolean);
-    if (amostra.length === 0) continue;
-    const tipo = c.tem_cliente && c.tem_login ? "ambos" : c.tem_login ? "logins" : "clientes";
-    out.push({ tabela: String(c.table_name), colunas: String(c.cols), tipo, amostra });
-  }
-  return out;
+  const results = await Promise.all(
+    cands.slice(0, 20).map(async (c: any) => {
+      const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 3;`);
+      const amostra = (rows || []).map((o: any) => o.r).filter(Boolean);
+      if (amostra.length === 0) return null;
+      const tipo: "clientes" | "logins" | "ambos" = c.tem_cliente && c.tem_login ? "ambos" : c.tem_login ? "logins" : "clientes";
+      return { tabela: String(c.table_name), colunas: String(c.cols), tipo, amostra };
+    })
+  );
+  return results.filter(Boolean) as { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[];
 }
 
 // Lê as linhas das tabelas que representam clientes/empresas (nome+email ou
@@ -94,13 +95,14 @@ export async function getClientRows(ref: string): Promise<{ tabela: string; rows
      order by table_name;`
   );
   if (!cands) return null;
-  const out: { tabela: string; rows: any[] }[] = [];
-  for (const c of cands.slice(0, 12)) {
-    const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 50;`);
-    const r = (rows || []).map((o: any) => o.r).filter(Boolean);
-    if (r.length) out.push({ tabela: String(c.table_name), rows: r });
-  }
-  return out;
+  const results = await Promise.all(
+    cands.slice(0, 12).map(async (c: any) => {
+      const rows = await runSupabaseQuery(ref, `select to_jsonb(x) as r from "${c.table_name}" x limit 50;`);
+      const r = (rows || []).map((o: any) => o.r).filter(Boolean);
+      return r.length ? { tabela: String(c.table_name), rows: r } : null;
+    })
+  );
+  return results.filter(Boolean) as { tabela: string; rows: any[] }[];
 }
 
 // Lista as tabelas reais (schema public) do projeto, com estimativa de linhas.

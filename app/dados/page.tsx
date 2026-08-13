@@ -6,6 +6,7 @@ import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Banco de dados de cada sistema (derivado do host e do supabaseRef).
 function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
@@ -28,11 +29,12 @@ export default async function Dados() {
 
   // Prova de conexão ao vivo: nº de tabelas no Supabase compartilhado.
   const refSupabase = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
-  const tabelas = refSupabase && supabaseConfigured() ? await listSupabaseTables(refSupabase) : null;
-  // Localiza onde estão os clientes e logins.
-  const chaves = refSupabase && supabaseConfigured() ? await findKeyTables(refSupabase) : null;
-  // Bistro no Firebase: coleções do Firestore.
-  const firestore = firebaseConfigured() ? await findFirestoreCollections() : null;
+  // Roda tudo em paralelo para não estourar o tempo de execução.
+  const [tabelas, chaves, firestore] = await Promise.all([
+    refSupabase && supabaseConfigured() ? listSupabaseTables(refSupabase) : Promise.resolve(null),
+    refSupabase && supabaseConfigured() ? findKeyTables(refSupabase) : Promise.resolve(null),
+    firebaseConfigured() ? findFirestoreCollections() : Promise.resolve(null),
+  ]);
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
   const linhas = sistemas.map((s) => {
