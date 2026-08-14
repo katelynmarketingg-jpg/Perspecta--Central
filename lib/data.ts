@@ -1,5 +1,6 @@
 import * as mock from "./mock";
 import type { Sistema, Plano, Empresa } from "./types";
+import { unstable_cache } from "next/cache";
 import { supabaseConfigured, getProjectHealth, getProjectDbSizeMb } from "./integrations/supabase";
 import { vercelConfigured, getLastDeploy } from "./integrations/vercel";
 import { mercadoPagoConfigured } from "./integrations/mercadopago";
@@ -20,7 +21,8 @@ export const getTickets = () => mock.tickets;
 export const serie = mock.serie;
 
 // Enriquecer sistemas com status ao vivo quando as integrações estiverem configuradas.
-export async function getSistemas(): Promise<Sistema[]> {
+// Cacheado por 60s: usado em toda página, evita refazer as chamadas externas a cada navegação.
+async function _getSistemas(): Promise<Sistema[]> {
   return Promise.all(
     mock.sistemas.map(async (s) => {
       let status = s.status;
@@ -46,6 +48,8 @@ export async function getSistemas(): Promise<Sistema[]> {
     })
   );
 }
+
+export const getSistemas = unstable_cache(_getSistemas, ["sistemas-enriched"], { revalidate: 60 });
 
 // Receita mensal (MRR) de um sistema a partir das assinaturas ativas.
 export function receitaSistema(sid: string): number {
