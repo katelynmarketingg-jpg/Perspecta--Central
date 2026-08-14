@@ -3,6 +3,7 @@ import { ClientesView } from "@/components/ClientesView";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, getClientRows } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getFirebaseClientDocs } from "@/lib/integrations/firebase";
+import { creatorConfigured, getCreatorClients } from "@/lib/integrations/creator";
 import { nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -47,11 +48,12 @@ export default async function Clientes() {
   const bistro = sistemas.find((s) => s.host === "Firebase");
 
   // Lê todas as fontes em paralelo.
-  const [supa, fire] = await Promise.all([
+  const [supa, fire, creatorRows] = await Promise.all([
     supabaseConfigured()
       ? Promise.all([...refs.entries()].map(async ([ref, sis]) => ({ sis, tabelas: await getClientRows(ref) })))
       : Promise.resolve([]),
     firebaseConfigured() ? getFirebaseClientDocs() : Promise.resolve(null),
+    creatorConfigured() ? getCreatorClients() : Promise.resolve(null),
   ]);
 
   // Classifica um registro do banco compartilhado entre Commerce e Juris pelo
@@ -82,8 +84,13 @@ export default async function Clientes() {
     const cor = bistro?.cor || "var(--accent)";
     for (const r of c.rows) clientes.push(normaliza(r, nomeSis, cor, c.colecao));
   }
+  // Creator (API própria)
+  const creatorSis = sistemas.find((s) => s.id === "creator");
+  const creatorNome = creatorSis ? nomeCurto(creatorSis.nome) : "Creator";
+  const creatorCor = creatorSis?.cor || "var(--accent)";
+  for (const r of creatorRows || []) clientes.push(normaliza(r, creatorNome, creatorCor, "creator-api"));
 
-  const fontes = (supabaseConfigured() ? 1 : 0) + (firebaseConfigured() ? 1 : 0);
+  const fontes = (supabaseConfigured() ? 1 : 0) + (firebaseConfigured() ? 1 : 0) + (creatorConfigured() ? 1 : 0);
 
   return (
     <>
