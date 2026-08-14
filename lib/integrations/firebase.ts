@@ -1,15 +1,13 @@
-import admin from "firebase-admin";
 import { unstable_cache } from "next/cache";
 
-// Integração com o Firebase (Bistro) via conta de serviço.
-// O Bistro usa o Realtime Database (não Firestore), então lemos de lá.
-// Enquanto a chave não estiver setada, o Central usa mock.
+// Integração com o Firebase (Bistro) via conta de serviço, lendo o Realtime
+// Database. O firebase-admin (pesado) é importado sob demanda (lazy) só quando
+// precisamos ler o banco de verdade — no cache quente, nem carrega.
 
 export function firebaseConfigured(): boolean {
   return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_SERVICE_ACCOUNT_B64);
 }
 
-// Fonte da chave: prefere a versão em base64 (à prova de colagem), senão o JSON cru.
 function rawServiceAccount(): string | null {
   const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64;
   if (b64) {
@@ -40,17 +38,6 @@ function databaseUrl(sa: any): string | undefined {
   return process.env.FIREBASE_DATABASE_URL || (sa?.project_id ? `https://${sa.project_id}-default-rtdb.firebaseio.com` : undefined);
 }
 
-function getApp(): admin.app.App | null {
-  if (!firebaseConfigured()) return null;
-  try {
-    if (admin.apps.length) return admin.app();
-    const sa = parseServiceAccount(rawServiceAccount() as string);
-    return admin.initializeApp({ credential: admin.credential.cert(sa), databaseURL: databaseUrl(sa) });
-  } catch {
-    return null;
-  }
-}
-
 // Normaliza um valor do Realtime Database para exibir (objeto aninhado vira texto).
 function safeDoc(id: string, data: any): Record<string, any> {
   if (data == null || typeof data !== "object") return { id, valor: data };
@@ -63,11 +50,13 @@ function safeDoc(id: string, data: any): Record<string, any> {
   return out;
 }
 
-// Lê a raiz do Realtime Database (a árvore inteira). null = falha de conexão.
+// Lê a raiz do Realtime Database. Importa o firebase-admin sob demanda.
 async function readRootRaw(): Promise<any | null> {
-  const app = getApp();
-  if (!app) return null;
+  if (!firebaseConfigured()) return null;
   try {
+    const admin = (await import("firebase-admin")).default;
+    const sa = parseServiceAccount(rawServiceAccount() as string);
+    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa), databaseURL: databaseUrl(sa) });
     const snap = await admin.database(app).ref("/").get();
     return snap.exists() ? snap.val() : {};
   } catch {
@@ -75,8 +64,8 @@ async function readRootRaw(): Promise<any | null> {
   }
 }
 
-// Cacheado por 60s: evita reler o banco inteiro (1+ MB) a cada acesso e por
-// várias funções na mesma página. Economiza tempo e cota de download.
+// Cacheado por 60s: lê o banco inteiro no máximo 1x por minuto (e nem carrega o
+// firebase-admin quando o cache está quente).
 const readRoot = unstable_cache(readRootRaw, ["firebase-rtdb-root"], { revalidate: 60 });
 
 // Diagnóstico: conecta no Realtime Database e conta os nós de topo.
@@ -88,8 +77,7 @@ export async function firebaseStatus(): Promise<{ configurado: boolean; ok: bool
   return { configurado: true, ok: true, colecoes: n };
 }
 
-// Lista os nós de topo do Realtime Database com uma amostra de itens — para
-// descobrir onde estão os clientes (ex.: a Aliança) do Bistro.
+// Lista os nós de topo do Realtime Database com uma amostra de itens.
 export async function findFirebaseNodes(): Promise<{ colecao: string; amostra: any[] }[] | null> {
   const root = await readRoot();
   if (root === null) return null;
