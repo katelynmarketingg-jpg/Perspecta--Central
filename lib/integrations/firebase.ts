@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { unstable_cache } from "next/cache";
 
 // Integração com o Firebase (Bistro) via conta de serviço.
 // O Bistro usa o Realtime Database (não Firestore), então lemos de lá.
@@ -63,7 +64,7 @@ function safeDoc(id: string, data: any): Record<string, any> {
 }
 
 // Lê a raiz do Realtime Database (a árvore inteira). null = falha de conexão.
-async function readRoot(): Promise<any | null> {
+async function readRootRaw(): Promise<any | null> {
   const app = getApp();
   if (!app) return null;
   try {
@@ -74,19 +75,17 @@ async function readRoot(): Promise<any | null> {
   }
 }
 
+// Cacheado por 60s: evita reler o banco inteiro (1+ MB) a cada acesso e por
+// várias funções na mesma página. Economiza tempo e cota de download.
+const readRoot = unstable_cache(readRootRaw, ["firebase-rtdb-root"], { revalidate: 60 });
+
 // Diagnóstico: conecta no Realtime Database e conta os nós de topo.
 export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
   if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
-  try {
-    const sa = parseServiceAccount(rawServiceAccount() as string);
-    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa), databaseURL: databaseUrl(sa) });
-    const snap = await admin.database(app).ref("/").get();
-    const root = snap.val();
-    const n = root && typeof root === "object" ? Object.keys(root).length : 0;
-    return { configurado: true, ok: true, colecoes: n };
-  } catch (e: any) {
-    return { configurado: true, ok: false, colecoes: 0, erro: String(e?.message || e || "falha").slice(0, 140) };
-  }
+  const root = await readRoot();
+  if (root === null) return { configurado: true, ok: false, colecoes: 0, erro: "não conectou ao Realtime Database (confira a chave e a FIREBASE_DATABASE_URL)" };
+  const n = root && typeof root === "object" ? Object.keys(root).length : 0;
+  return { configurado: true, ok: true, colecoes: n };
 }
 
 // Lista os nós de topo do Realtime Database com uma amostra de itens — para

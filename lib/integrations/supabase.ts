@@ -1,5 +1,6 @@
 // Integração com a Supabase Management API — status/uso/advisories por projeto.
 // Enquanto SUPABASE_MANAGEMENT_TOKEN não estiver setado, o Central usa mock.
+import { unstable_cache } from "next/cache";
 
 export function supabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_MANAGEMENT_TOKEN);
@@ -51,7 +52,7 @@ export async function runSupabaseQuery(ref: string, sql: string): Promise<any[] 
 
 // Localiza tabelas que parecem guardar clientes/empresas ou usuários/logins
 // (pelas colunas), com uma amostra de linhas — para descobrir ONDE cada dado mora.
-export async function findKeyTables(ref: string): Promise<
+async function _findKeyTables(ref: string): Promise<
   { tabela: string; colunas: string; tipo: "clientes" | "logins" | "ambos"; amostra: any[] }[] | null
 > {
   const cands = await runSupabaseQuery(
@@ -81,7 +82,7 @@ export async function findKeyTables(ref: string): Promise<
 }
 
 // Diagnóstico: confirma se o token consegue consultar o banco.
-export async function supabaseStatus(ref: string): Promise<{ configurado: boolean; ok: boolean; tabelas: number }> {
+async function _supabaseStatus(ref: string): Promise<{ configurado: boolean; ok: boolean; tabelas: number }> {
   if (!supabaseConfigured() || !ref) return { configurado: supabaseConfigured(), ok: false, tabelas: 0 };
   const rows = await runSupabaseQuery(ref, "select count(*)::int as n from information_schema.tables where table_schema = 'public';");
   const ok = Array.isArray(rows) && rows.length > 0;
@@ -90,7 +91,7 @@ export async function supabaseStatus(ref: string): Promise<{ configurado: boolea
 
 // Lê as linhas das tabelas que representam clientes/empresas (nome+email ou
 // nome de tabela tipo customers/clients/empresas). Até 50 linhas por tabela.
-export async function getClientRows(ref: string): Promise<{ tabela: string; rows: any[] }[] | null> {
+async function _getClientRows(ref: string): Promise<{ tabela: string; rows: any[] }[] | null> {
   const cands = await runSupabaseQuery(
     ref,
     `select table_name
@@ -114,7 +115,7 @@ export async function getClientRows(ref: string): Promise<{ tabela: string; rows
 }
 
 // Lista as tabelas reais (schema public) do projeto, com estimativa de linhas.
-export async function listSupabaseTables(ref: string): Promise<{ tabela: string; linhas: number }[] | null> {
+async function _listSupabaseTables(ref: string): Promise<{ tabela: string; linhas: number }[] | null> {
   const rows = await runSupabaseQuery(
     ref,
     "select relname as tabela, n_live_tup as linhas from pg_stat_user_tables order by n_live_tup desc, relname;"
@@ -125,7 +126,7 @@ export async function listSupabaseTables(ref: string): Promise<{ tabela: string;
 
 // Tamanho REAL do banco do projeto (em MB), via query SQL na Management API.
 // Roda um SELECT somente-leitura (pg_database_size) — seguro. Retorna null → cai em mock.
-export async function getProjectDbSizeMb(ref: string): Promise<number | null> {
+async function _getProjectDbSizeMb(ref: string): Promise<number | null> {
   if (!supabaseConfigured() || !ref) return null;
   try {
     const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
@@ -144,3 +145,10 @@ export async function getProjectDbSizeMb(ref: string): Promise<number | null> {
     return null;
   }
 }
+
+// Versões cacheadas (60s): evitam refazer as consultas pesadas a cada acesso.
+export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables"], { revalidate: 60 });
+export const supabaseStatus = unstable_cache(_supabaseStatus, ["sb-status"], { revalidate: 60 });
+export const getClientRows = unstable_cache(_getClientRows, ["sb-client-rows"], { revalidate: 60 });
+export const listSupabaseTables = unstable_cache(_listSupabaseTables, ["sb-list-tables"], { revalidate: 60 });
+export const getProjectDbSizeMb = unstable_cache(_getProjectDbSizeMb, ["sb-db-size"], { revalidate: 300 });
