@@ -2,6 +2,7 @@ import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
 import { firebaseConfigured, findFirebaseNodes, firebaseStatus } from "@/lib/integrations/firebase";
+import { creatorStatus } from "@/lib/integrations/creator";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export default async function Dados() {
     refSupabase ? supabaseStatus(refSupabase) : Promise.resolve({ configurado: supabaseConfigured(), ok: false, tabelas: 0 }),
     firebaseStatus(),
   ]);
+  const creatorSt = await creatorStatus();
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
   const linhas = sistemas.map((s) => {
@@ -74,6 +76,12 @@ export default async function Dados() {
                 <td>{!fireSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : fireSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
                 <td className="r num">{fireSt.ok ? `${fireSt.colecoes} coleções` : "—"}</td>
                 <td style={{ color: fireSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!fireSt.configurado ? "configure FIREBASE_SERVICE_ACCOUNT" : fireSt.ok ? "lendo o Realtime Database ao vivo" : (fireSt.erro || "falha ao conectar")}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 600 }}>Creator (API)</td>
+                <td>{!creatorSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : creatorSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
+                <td className="r num">{creatorSt.ok ? `${creatorSt.clientes} clientes` : "—"}</td>
+                <td style={{ color: creatorSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!creatorSt.configurado ? "configure CREATOR_API_URL / CREATOR_USER / CREATOR_PASS" : creatorSt.ok ? "lendo a API do Creator ao vivo" : (creatorSt.erro || "falha ao conectar")}</td>
               </tr>
             </tbody>
           </table>
