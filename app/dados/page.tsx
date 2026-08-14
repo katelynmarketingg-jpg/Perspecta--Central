@@ -1,7 +1,7 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
-import { firebaseConfigured, findFirestoreCollections, firebaseStatus } from "@/lib/integrations/firebase";
+import { firebaseConfigured, findFirebaseNodes, firebaseStatus } from "@/lib/integrations/firebase";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export default async function Dados() {
   const [tabelas, chaves, firestore, supaSt, fireSt] = await Promise.all([
     refSupabase && supabaseConfigured() ? listSupabaseTables(refSupabase) : Promise.resolve(null),
     refSupabase && supabaseConfigured() ? findKeyTables(refSupabase) : Promise.resolve(null),
-    firebaseConfigured() ? findFirestoreCollections() : Promise.resolve(null),
+    firebaseConfigured() ? findFirebaseNodes() : Promise.resolve(null),
     refSupabase ? supabaseStatus(refSupabase) : Promise.resolve({ configurado: supabaseConfigured(), ok: false, tabelas: 0 }),
     firebaseStatus(),
   ]);
@@ -73,7 +73,7 @@ export default async function Dados() {
                 <td style={{ fontWeight: 600 }}>Firebase (Bistro)</td>
                 <td>{!fireSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : fireSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
                 <td className="r num">{fireSt.ok ? `${fireSt.colecoes} coleções` : "—"}</td>
-                <td style={{ color: fireSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!fireSt.configurado ? "configure FIREBASE_SERVICE_ACCOUNT" : fireSt.ok ? "lendo o Firestore ao vivo" : (fireSt.erro || "falha ao conectar")}</td>
+                <td style={{ color: fireSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!fireSt.configurado ? "configure FIREBASE_SERVICE_ACCOUNT" : fireSt.ok ? "lendo o Realtime Database ao vivo" : (fireSt.erro || "falha ao conectar")}</td>
               </tr>
             </tbody>
           </table>
@@ -162,12 +162,12 @@ export default async function Dados() {
       {firestore && firestore.length > 0 && (
         <>
           <div className="sec-title" style={{ marginTop: 4 }}>
-            <h3 style={{ fontSize: 15, margin: 0 }}>Bistro — Firestore (Firebase)</h3>
-            <span className="c">{firestore.length} coleções · ao vivo</span>
+            <h3 style={{ fontSize: 15, margin: 0 }}>Bistro — Realtime Database (Firebase)</h3>
+            <span className="c">{firestore.length} nós · ao vivo</span>
           </div>
           <div className="banner">
             <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-            <span>Coleções lidas <b>ao vivo</b> do Firebase do Bistro. É aqui que está a Aliança — cada coleção vira candidata a clientes/logins do Bistro.</span>
+            <span>Nós lidos <b>ao vivo</b> do Realtime Database do Bistro. É aqui que está a Aliança — cada nó vira candidato a clientes/logins do Bistro.</span>
           </div>
           {firestore.map((c) => {
             const cols = Array.from(new Set(c.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);

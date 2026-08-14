@@ -1,7 +1,8 @@
 import admin from "firebase-admin";
 
 // Integração com o Firebase (Bistro) via conta de serviço.
-// Enquanto FIREBASE_SERVICE_ACCOUNT não estiver setado, o Central usa mock.
+// O Bistro usa o Realtime Database (não Firestore), então lemos de lá.
+// Enquanto a chave não estiver setada, o Central usa mock.
 
 export function firebaseConfigured(): boolean {
   return Boolean(process.env.FIREBASE_SERVICE_ACCOUNT || process.env.FIREBASE_SERVICE_ACCOUNT_B64);
@@ -16,8 +17,7 @@ function rawServiceAccount(): string | null {
   return process.env.FIREBASE_SERVICE_ACCOUNT || null;
 }
 
-// Faz o parse tolerante da chave: se a colagem tiver lixo antes/depois ou
-// estiver duplicada, extrai o 1º objeto JSON balanceado e ignora o resto.
+// Parse tolerante: extrai o 1º objeto JSON balanceado, ignorando lixo/duplicação.
 function parseServiceAccount(raw: string): any {
   try { return JSON.parse(raw); } catch {}
   const start = raw.indexOf("{");
@@ -35,86 +35,88 @@ function parseServiceAccount(raw: string): any {
   throw new Error("JSON da chave incompleto");
 }
 
+function databaseUrl(sa: any): string | undefined {
+  return process.env.FIREBASE_DATABASE_URL || (sa?.project_id ? `https://${sa.project_id}-default-rtdb.firebaseio.com` : undefined);
+}
+
 function getApp(): admin.app.App | null {
   if (!firebaseConfigured()) return null;
   try {
     if (admin.apps.length) return admin.app();
     const sa = parseServiceAccount(rawServiceAccount() as string);
-    return admin.initializeApp({ credential: admin.credential.cert(sa) });
+    return admin.initializeApp({ credential: admin.credential.cert(sa), databaseURL: databaseUrl(sa) });
   } catch {
     return null;
   }
 }
 
-// Diagnóstico: diz se o Firebase conectou de verdade (e por que não, se falhar).
-export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
-  if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
-  try {
-    const sa = parseServiceAccount(rawServiceAccount() as string);
-    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa) });
-    const cols = await admin.firestore(app).listCollections();
-    return { configurado: true, ok: true, colecoes: cols.length };
-  } catch (e: any) {
-    const msg = String(e?.message || e || "falha");
-    return { configurado: true, ok: false, colecoes: 0, erro: msg.slice(0, 140) };
-  }
-}
-
-// Converte um documento do Firestore em objeto seguro para exibir (datas viram ISO).
-function safeDoc(id: string, data: Record<string, any>): Record<string, any> {
+// Normaliza um valor do Realtime Database para exibir (objeto aninhado vira texto).
+function safeDoc(id: string, data: any): Record<string, any> {
+  if (data == null || typeof data !== "object") return { id, valor: data };
   const out: Record<string, any> = { id };
-  for (const [k, v] of Object.entries(data || {})) {
+  for (const [k, v] of Object.entries(data)) {
     if (v == null) out[k] = v;
-    else if (typeof v === "object") {
-      if (typeof (v as any).toDate === "function") out[k] = (v as any).toDate().toISOString();
-      else {
-        try { out[k] = JSON.stringify(v); } catch { out[k] = "[obj]"; }
-      }
-    } else out[k] = v;
+    else if (typeof v === "object") { try { out[k] = JSON.stringify(v); } catch { out[k] = "[obj]"; } }
+    else out[k] = v;
   }
   return out;
 }
 
-// Lê os documentos das coleções que representam clientes do Bistro (até 50).
-// Prioriza coleções com nome tipo clients/customers/empresas; se nenhuma bater,
-// devolve as coleções não vazias.
-export async function getFirestoreClientDocs(): Promise<{ colecao: string; rows: any[] }[] | null> {
+// Lê a raiz do Realtime Database (a árvore inteira). null = falha de conexão.
+async function readRoot(): Promise<any | null> {
   const app = getApp();
   if (!app) return null;
   try {
-    const db = admin.firestore(app);
-    const cols = await db.listCollections();
-    const nomeCliente = /client|customer|empresa|cliente|tenant|company|conta|account/i;
-    let alvo = cols.filter((c) => nomeCliente.test(c.id));
-    if (alvo.length === 0) alvo = cols.slice(0, 10);
-    const results = await Promise.all(
-      alvo.map(async (col) => {
-        const snap = await col.limit(50).get();
-        return snap.empty ? null : { colecao: col.id, rows: snap.docs.map((d) => safeDoc(d.id, d.data())) };
-      })
-    );
-    return results.filter(Boolean) as { colecao: string; rows: any[] }[];
+    const snap = await admin.database(app).ref("/").get();
+    return snap.exists() ? snap.val() : {};
   } catch {
     return null;
   }
 }
 
-// Lista as coleções raiz do Firestore com uma amostra de documentos — para
-// descobrir onde estão os clientes (ex.: a Aliança) do Bistro.
-export async function findFirestoreCollections(): Promise<{ colecao: string; amostra: any[] }[] | null> {
-  const app = getApp();
-  if (!app) return null;
+// Diagnóstico: conecta no Realtime Database e conta os nós de topo.
+export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {
+  if (!firebaseConfigured()) return { configurado: false, ok: false, colecoes: 0 };
   try {
-    const db = admin.firestore(app);
-    const cols = await db.listCollections();
-    const results = await Promise.all(
-      cols.slice(0, 30).map(async (col) => {
-        const snap = await col.limit(3).get();
-        return snap.empty ? null : { colecao: col.id, amostra: snap.docs.map((d) => safeDoc(d.id, d.data())) };
-      })
-    );
-    return results.filter(Boolean) as { colecao: string; amostra: any[] }[];
-  } catch {
-    return null;
+    const sa = parseServiceAccount(rawServiceAccount() as string);
+    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential: admin.credential.cert(sa), databaseURL: databaseUrl(sa) });
+    const snap = await admin.database(app).ref("/").get();
+    const root = snap.val();
+    const n = root && typeof root === "object" ? Object.keys(root).length : 0;
+    return { configurado: true, ok: true, colecoes: n };
+  } catch (e: any) {
+    return { configurado: true, ok: false, colecoes: 0, erro: String(e?.message || e || "falha").slice(0, 140) };
   }
+}
+
+// Lista os nós de topo do Realtime Database com uma amostra de itens — para
+// descobrir onde estão os clientes (ex.: a Aliança) do Bistro.
+export async function findFirebaseNodes(): Promise<{ colecao: string; amostra: any[] }[] | null> {
+  const root = await readRoot();
+  if (root === null) return null;
+  if (!root || typeof root !== "object") return [];
+  const out: { colecao: string; amostra: any[] }[] = [];
+  for (const [key, val] of Object.entries(root)) {
+    if (val && typeof val === "object") {
+      const children = Object.entries(val as any).slice(0, 3).map(([id, v]) => safeDoc(id, v));
+      if (children.length) out.push({ colecao: key, amostra: children });
+    }
+  }
+  return out;
+}
+
+// Lê os itens dos nós que representam clientes do Bistro (até 50 por nó).
+export async function getFirebaseClientDocs(): Promise<{ colecao: string; rows: any[] }[] | null> {
+  const root = await readRoot();
+  if (root === null) return null;
+  if (!root || typeof root !== "object") return [];
+  const nomeCliente = /client|customer|empresa|cliente|tenant|company|conta|account|user|usuario|restaurante|estabelecimento|mesa|pedido/i;
+  let keys = Object.keys(root).filter((k) => nomeCliente.test(k) && root[k] && typeof root[k] === "object");
+  if (keys.length === 0) keys = Object.keys(root).filter((k) => root[k] && typeof root[k] === "object").slice(0, 10);
+  const out: { colecao: string; rows: any[] }[] = [];
+  for (const k of keys) {
+    const children = Object.entries(root[k]).slice(0, 50).map(([id, v]) => safeDoc(id, v));
+    if (children.length) out.push({ colecao: k, rows: children });
+  }
+  return out;
 }
