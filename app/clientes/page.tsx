@@ -1,7 +1,7 @@
 import { Card, Kpi, Icon } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, getClientRows } from "@/lib/integrations/supabase";
-import { firebaseConfigured, getFirestoreClientDocs } from "@/lib/integrations/firebase";
+import { firebaseConfigured, getFirebaseClientDocs } from "@/lib/integrations/firebase";
 import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export default async function Clientes() {
     supabaseConfigured()
       ? Promise.all([...refs.entries()].map(async ([ref, sis]) => ({ sis, tabelas: await getClientRows(ref) })))
       : Promise.resolve([]),
-    firebaseConfigured() ? getFirestoreClientDocs() : Promise.resolve(null),
+    firebaseConfigured() ? getFirebaseClientDocs() : Promise.resolve(null),
   ]);
 
   // Classifica um registro do banco compartilhado entre Commerce e Juris pelo
