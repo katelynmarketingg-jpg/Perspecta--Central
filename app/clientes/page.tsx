@@ -1,8 +1,9 @@
 import { Card, Kpi, Icon } from "@/components/ui";
+import { ClientesView } from "@/components/ClientesView";
 import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, getClientRows } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getFirebaseClientDocs } from "@/lib/integrations/firebase";
-import { BRL, initials, nomeCurto } from "@/lib/format";
+import { nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -82,15 +83,6 @@ export default async function Clientes() {
     for (const r of c.rows) clientes.push(normaliza(r, nomeSis, cor, c.colecao));
   }
 
-  // Só mostra as colunas opcionais que têm ao menos um dado.
-  const tem = (f: keyof Cli) => clientes.some((c) => c[f] != null && c[f] !== "");
-  const colTel = tem("telefone"), colDoc = tem("documento"), colValor = tem("valor"), colStatus = tem("status");
-
-  const fmtValor = (v: any) => {
-    if (v == null || v === "") return "—";
-    const n = typeof v === "number" ? v : Number(String(v).replace(/[^\d.,-]/g, "").replace(/\.(?=\d{3})/g, "").replace(",", "."));
-    return Number.isFinite(n) && n > 0 ? BRL(n) : String(v);
-  };
   const fontes = (supabaseConfigured() ? 1 : 0) + (firebaseConfigured() ? 1 : 0);
 
   return (
@@ -115,36 +107,7 @@ export default async function Clientes() {
           </div>
         </Card>
       ) : (
-        <Card title="Todos os clientes" hint={`${clientes.length} · ao vivo`}>
-          <div className="tablewrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Cliente</th>
-                  <th>Sistema</th>
-                  <th>Contato</th>
-                  {colTel && <th>Telefone</th>}
-                  {colDoc && <th>Documento</th>}
-                  {colValor && <th className="r">Valor</th>}
-                  {colStatus && <th>Status</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {clientes.map((c, i) => (
-                  <tr key={i}>
-                    <td><div className="co"><div className="ci">{initials(c.nome)}</div><div className="cn">{c.nome}</div></div></td>
-                    <td><span className="sys-tag"><span className="sd" style={{ background: c.cor }} />{c.sistema}</span></td>
-                    <td style={{ color: "var(--muted)" }}>{c.email ?? "—"}</td>
-                    {colTel && <td className="num">{c.telefone ?? "—"}</td>}
-                    {colDoc && <td className="num">{c.documento ?? "—"}</td>}
-                    {colValor && <td className="r num">{fmtValor(c.valor)}</td>}
-                    {colStatus && <td style={{ color: "var(--muted)" }}>{c.status ?? "—"}</td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+        <ClientesView clientes={clientes} />
       )}
     </>
   );
