@@ -1,162 +1,239 @@
 -- =============================================================================
 -- Perspecta Central — schema inicial (Supabase / Postgres)
--- Multi-tenant, RLS habilitado. Rode no SQL editor do projeto Supabase do Central.
+--
+-- IMPORTANTE: tudo vive no schema `central`, NUNCA em `public`.
+-- O projeto Supabase ndzdhseravwdcdfuroda é COMPARTILHADO:
+--   public   = Perspecta Juris
+--   commerce = Perspecta Commerce
+--   central  = este painel
+-- Criar tabelas sem prefixo jogaria o Central dentro do schema do Juris.
 -- =============================================================================
 
 create extension if not exists "pgcrypto";
+create schema if not exists central;
 
 -- Papéis de acesso (RBAC) ---------------------------------------------------
-create type role_master as enum ('super_admin','admin','financeiro','suporte','visualizador');
-create type sistema_status as enum ('operacional','degradado','com_erro','sem_dados');
-create type empresa_status as enum ('ativo','inad','pend','canc');
-create type pagamento_status as enum ('pago','falhou','vencido','pendente');
-create type login_resultado as enum ('sucesso','falha');
-create type dado_source as enum ('live','manual','mock');
+do $$ begin
+  create type central.role_master as enum ('super_admin','admin','financeiro','suporte','visualizador');
+  create type central.sistema_status as enum ('operacional','degradado','com_erro','sem_dados');
+  create type central.empresa_status as enum ('ativo','inad','pend','canc');
+  create type central.pagamento_status as enum ('pago','falhou','vencido','pendente');
+  create type central.login_resultado as enum ('sucesso','falha');
+  -- 'mock' existe para que dado inventado NUNCA se passe por real na tela.
+  create type central.dado_source as enum ('live','manual','mock');
+exception when duplicate_object then null; end $$;
 
 -- Usuários do Central (equipe) ---------------------------------------------
-create table usuarios_master (
-  id uuid primary key default auth.uid(),
+create table if not exists central.usuarios_master (
+  id uuid primary key default gen_random_uuid(),
   nome text not null,
   email text unique not null,
-  role role_master not null default 'visualizador',
+  role central.role_master not null default 'visualizador',
   ativo boolean not null default true,
   created_at timestamptz not null default now()
 );
 
 -- Catálogo de sistemas ------------------------------------------------------
-create table sistemas (
+create table if not exists central.sistemas (
   id text primary key,
   nome text not null,
   cor text,
   url text,
   repo_github text,
-  host text check (host in ('Vercel','Render')),
+  host text,
   supabase_ref text,
+  supabase_schema text,
   vercel_project text,
   render_service text,
-  status sistema_status not null default 'sem_dados',
-  status_source dado_source not null default 'mock',
+  banco text,                        -- descrição legível: Supabase, SQLite, Firebase, nenhum
+  status central.sistema_status not null default 'sem_dados',
+  status_source central.dado_source not null default 'mock',
   uptime numeric,
   versao text,
+  observacao text,
   -- segredos ficam em variáveis de ambiente, NÃO aqui
   created_at timestamptz not null default now()
 );
 
--- Planos --------------------------------------------------------------------
-create table planos (
+-- O que já está ligado de cada sistema (a aba "Sistemas") -------------------
+-- Metade é testável pela própria Central; metade é checklist manual.
+create table if not exists central.integracoes (
+  sistema_id text not null references central.sistemas(id) on delete cascade,
+  capacidade text not null,          -- leitura_clientes | medicao_uso | criar_login | revogar_login | preco_plano
+  estado text not null default 'falta', -- ok | pendente | parcial | falta | nao_se_aplica
+  automatico boolean not null default false, -- true = a Central testa sozinha
+  falta_o_que text,                  -- em linguagem de gente
+  observacao text,
+  verificado_em timestamptz not null default now(),
+  primary key (sistema_id, capacidade)
+);
+
+-- Histórico de medições — série temporal, NÃO sobrescreve -------------------
+-- Sem duas medições não existe projeção de "quando isso vira conta".
+create table if not exists central.medicoes (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id) on delete cascade,
+  medido_em date not null default current_date,
+  fonte text not null,               -- supabase | firebase | render | vercel | r2 | manual
+  sistema_id text references central.sistemas(id) on delete set null,
+  metrica text not null,             -- banco_bytes | storage_bytes | logins | clientes | ...
+  valor numeric not null,
+  unidade text,                      -- bytes | contagem | brl | usd
+  limite numeric,                    -- limite do plano gratuito, quando existir
+  origem central.dado_source not null default 'live',
+  detalhe jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists medicoes_serie on central.medicoes (metrica, medido_em desc);
+
+-- Planos --------------------------------------------------------------------
+create table if not exists central.planos (
+  id uuid primary key default gen_random_uuid(),
+  sistema_id text not null references central.sistemas(id) on delete cascade,
   nome text not null,
-  valor_mensal numeric not null,
+  valor_mensal numeric,
+  valor_anual numeric,
   limite_storage_mb bigint,
   limite_logins int,
   limite_registros bigint,
   recursos jsonb default '[]',
+  origem central.dado_source not null default 'manual',
   ativo boolean default true
 );
 
--- Empresas (tenants) --------------------------------------------------------
-create table empresas (
+-- Empresas (clientes) -------------------------------------------------------
+create table if not exists central.empresas (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id),
-  external_ref text,                 -- id interno da empresa no sistema de origem
+  sistema_id text not null references central.sistemas(id),
+  external_ref text,                 -- id da empresa no sistema de origem
   nome text not null,
   cnpj text,
   email text,
-  status empresa_status not null default 'ativo',
-  mercadopago_customer_id text,      -- referência no MP, nunca o cartão
+  status central.empresa_status not null default 'ativo',
   carencia_dias int default 7,
-  carencia_ate date,                 -- fim da carência quando um pagamento falha
+  carencia_ate date,
   created_at timestamptz not null default now()
 );
 
-create table assinaturas (
+create table if not exists central.assinaturas (
   id uuid primary key default gen_random_uuid(),
-  empresa_id uuid not null references empresas(id) on delete cascade,
-  plano_id uuid not null references planos(id),
-  sistema_id text not null references sistemas(id),
+  empresa_id uuid not null references central.empresas(id) on delete cascade,
+  plano_id uuid not null references central.planos(id),
+  sistema_id text not null references central.sistemas(id),
   ciclo text default 'mensal',
-  valor numeric not null,
+  valor numeric not null,            -- o preço REALMENTE cobrado (pode ter desconto)
   status text default 'ativa',
-  mercadopago_preapproval_id text,
   proximo_vencimento date,
   created_at timestamptz not null default now()
 );
 
--- Consumo materializado -----------------------------------------------------
-create table consumo_atual (
-  empresa_id uuid primary key references empresas(id) on delete cascade,
+-- Consumo atual (materializado; o histórico fica em medicoes) ---------------
+create table if not exists central.consumo_atual (
+  empresa_id uuid primary key references central.empresas(id) on delete cascade,
   storage_usado_mb bigint default 0,
   registros_usados bigint default 0,
   logins_ativos int default 0,
   coletado_em timestamptz default now()
 );
 
--- Custos (por sistema ou geral) — real (Supabase) ou manual -----------------
-create table custos (
+-- Custos --------------------------------------------------------------------
+-- rateio: sistema | diluido | geral  → define como entra no relatório
+create table if not exists central.custos (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text references sistemas(id) on delete set null, -- null = geral
+  sistema_id text references central.sistemas(id) on delete set null,
   nome text not null,
-  valor_mensal numeric not null,
-  fonte text,                        -- Supabase | Vercel | Render | Anthropic | Outro
-  source dado_source not null default 'manual',
-  mes date default date_trunc('month', now()),
+  valor numeric not null,
+  moeda text not null default 'USD',
+  cotacao numeric,                   -- USD→BRL usada, para o histórico não mentir
+  periodicidade text default 'mensal', -- mensal | anual | avulso
+  rateio text not null default 'sistema',
+  criterio_rateio text,              -- partes iguais | por clientes | ...
+  fonte text,                        -- Supabase | Vercel | Render | Anthropic | Pessoas | Outro
+  inicio date,
+  fim date,
+  source central.dado_source not null default 'manual',
   created_at timestamptz not null default now()
 );
 
--- Pagamentos e faturas ------------------------------------------------------
-create table faturas (
+-- Gatilhos: quando o plano gratuito vira conta ------------------------------
+create table if not exists central.gatilhos_custo (
   id uuid primary key default gen_random_uuid(),
-  empresa_id uuid not null references empresas(id) on delete cascade,
+  fonte text not null,               -- Supabase | Vercel | Firebase | Render | R2
+  metrica text not null,             -- banco_bytes | egress | uso_comercial | ...
+  limite_gratuito numeric,
+  unidade text,
+  custo_ao_estourar numeric,
+  moeda text default 'USD',
+  observacao text,
+  url_fonte text not null,           -- de onde saiu o número
+  confirmado_em date,                -- quando foi conferido na fonte
+  created_at timestamptz not null default now()
+);
+
+-- Provisionamento: log de cada criação/revogação de login -------------------
+create table if not exists central.provisionamentos (
+  id uuid primary key default gen_random_uuid(),
+  sistema_id text not null references central.sistemas(id),
+  empresa_id uuid references central.empresas(id) on delete set null,
+  acao text not null,                -- criar | revogar | suspender | reset_senha
+  alvo text,                         -- email/login do destinatário
+  resultado text not null,           -- sucesso | erro
+  erro text,
+  payload jsonb,
+  quando timestamptz not null default now()
+);
+
+-- Faturas e cobrança --------------------------------------------------------
+create table if not exists central.faturas (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references central.empresas(id) on delete cascade,
   valor numeric not null,
-  periodo_ref text,                  -- ex.: "2026-08"
-  status pagamento_status not null default 'pendente',
+  periodo_ref text,
+  status central.pagamento_status not null default 'pendente',
   metodo text,
   vencimento date,
   criado_em timestamptz not null default now()
 );
 
-create table cobranca_tentativas (
+create table if not exists central.cobranca_tentativas (
   id uuid primary key default gen_random_uuid(),
-  fatura_id uuid not null references faturas(id) on delete cascade,
+  fatura_id uuid not null references central.faturas(id) on delete cascade,
   tentada_em timestamptz not null default now(),
-  resultado text not null,           -- aprovado | recusado | sem_saldo | erro ...
+  resultado text not null,
   motivo text
 );
 
--- Acessos: tentativas de login por empresa/usuário --------------------------
--- Cada sistema grava suas tentativas; o Central lê (via Supabase ou API do sistema).
-create table login_attempts (
+-- Acessos -------------------------------------------------------------------
+create table if not exists central.login_attempts (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id),
-  empresa_id uuid references empresas(id) on delete set null,
-  empresa_ref text,                  -- caso o mapeamento ainda não exista
+  sistema_id text not null references central.sistemas(id),
+  empresa_id uuid references central.empresas(id) on delete set null,
+  empresa_ref text,
   usuario_external_id text,
   usuario_email text,
-  resultado login_resultado not null,
-  motivo text,                       -- senha_incorreta | bloqueado | token_expirado ...
+  resultado central.login_resultado not null,
+  motivo text,
   ip inet,
   device_fingerprint text,
   quando timestamptz not null default now()
 );
-create index on login_attempts (empresa_id, quando desc);
-create index on login_attempts (sistema_id, quando desc);
+create index if not exists login_attempts_empresa on central.login_attempts (empresa_id, quando desc);
+create index if not exists login_attempts_sistema on central.login_attempts (sistema_id, quando desc);
 
--- Infra snapshots (coleta agendada) -----------------------------------------
-create table infra_snapshots (
+-- Snapshots de infra --------------------------------------------------------
+create table if not exists central.infra_snapshots (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id),
-  fonte text,                        -- supabase | vercel
-  status sistema_status,
+  sistema_id text not null references central.sistemas(id),
+  fonte text,
+  status central.sistema_status,
   payload jsonb,
   coletado_em timestamptz not null default now()
 );
 
 -- Suporte -------------------------------------------------------------------
-create table tickets_suporte (
+create table if not exists central.tickets_suporte (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id),
-  empresa_id uuid references empresas(id) on delete set null,
+  sistema_id text not null references central.sistemas(id),
+  empresa_id uuid references central.empresas(id) on delete set null,
   usuario_external_id text,
   assunto text,
   status text default 'aberto',
@@ -164,30 +241,46 @@ create table tickets_suporte (
   external_ticket_ref text,
   criado_em timestamptz not null default now()
 );
-create table mensagens_ticket (
+create table if not exists central.mensagens_ticket (
   id uuid primary key default gen_random_uuid(),
-  ticket_id uuid not null references tickets_suporte(id) on delete cascade,
-  autor_tipo text,                   -- cliente | equipe
+  ticket_id uuid not null references central.tickets_suporte(id) on delete cascade,
+  autor_tipo text,
   corpo text,
   enviado_ao_sistema boolean default false,
   criado_em timestamptz not null default now()
 );
 
+-- Tarefas (kanban) ----------------------------------------------------------
+create table if not exists central.tarefas (
+  id uuid primary key default gen_random_uuid(),
+  sistema_id text references central.sistemas(id) on delete set null,
+  titulo text not null,
+  descricao text,
+  coluna text not null default 'backlog', -- backlog | a_fazer | fazendo | revisao | feito
+  prioridade text default 'media',
+  ordem int default 0,
+  depende_de_mim boolean default false,   -- true = ação da dona, não do time
+  onde_clicar text,
+  created_at timestamptz not null default now(),
+  concluida_em timestamptz
+);
+create index if not exists tarefas_coluna on central.tarefas (coluna, ordem);
+
 -- Alertas + auditoria -------------------------------------------------------
-create table alertas (
+create table if not exists central.alertas (
   id uuid primary key default gen_random_uuid(),
   tipo text,
   severidade text,
-  sistema_id text references sistemas(id),
-  empresa_id uuid references empresas(id) on delete set null,
+  sistema_id text references central.sistemas(id),
+  empresa_id uuid references central.empresas(id) on delete set null,
   titulo text,
   detalhe jsonb,
   status text default 'aberto',
   criado_em timestamptz not null default now()
 );
-create table audit_log (
+create table if not exists central.audit_log (
   id uuid primary key default gen_random_uuid(),
-  usuario_master_id uuid references usuarios_master(id),
+  usuario_master_id uuid references central.usuarios_master(id),
   acao text,
   entidade text,
   entidade_id text,
@@ -196,53 +289,48 @@ create table audit_log (
   criado_em timestamptz not null default now()
 );
 
--- Bugs / incidentes por sistema --------------------------------------------
-create table incidentes (
+create table if not exists central.incidentes (
   id uuid primary key default gen_random_uuid(),
-  sistema_id text not null references sistemas(id) on delete cascade,
+  sistema_id text not null references central.sistemas(id) on delete cascade,
   titulo text not null,
-  severidade text,                   -- alta | media | baixa
+  severidade text,
   status text default 'aberto',
   detectado_em timestamptz not null default now()
 );
 
 -- =============================================================================
--- RLS: por padrão, só usuários autenticados do Central (usuarios_master) leem.
--- Escrita fica restrita conforme o papel — refinar por tabela na fase de auth.
+-- RLS
+-- A Central acessa este schema pela Management API (superusuário), que ignora
+-- RLS. As políticas abaixo são a rede de segurança para o dia em que o acesso
+-- passar a ser por chave anônima: sem elas, qualquer chave leria tudo.
+--
+-- ATENÇÃO ao search_path da função: declarar `set search_path = central, public`
+-- é obrigatório. Uma função sem isso resolve nomes no schema errado — foi
+-- exatamente o defeito que quebrou o RLS do Commerce.
 -- =============================================================================
-alter table usuarios_master enable row level security;
-alter table sistemas enable row level security;
-alter table planos enable row level security;
-alter table empresas enable row level security;
-alter table assinaturas enable row level security;
-alter table consumo_atual enable row level security;
-alter table custos enable row level security;
-alter table faturas enable row level security;
-alter table cobranca_tentativas enable row level security;
-alter table login_attempts enable row level security;
-alter table infra_snapshots enable row level security;
-alter table tickets_suporte enable row level security;
-alter table mensagens_ticket enable row level security;
-alter table alertas enable row level security;
-alter table audit_log enable row level security;
-alter table incidentes enable row level security;
-
--- Helper: o usuário atual é membro ativo da equipe do Central?
-create or replace function is_master() returns boolean language sql stable as $$
-  select exists (select 1 from usuarios_master u where u.id = auth.uid() and u.ativo);
+create or replace function central.is_master() returns boolean
+  language sql stable
+  security definer
+  set search_path = central, public
+as $$
+  select exists (
+    select 1 from central.usuarios_master u
+    where u.email = nullif(current_setting('request.jwt.claims', true), '')::json->>'email'
+      and u.ativo
+  );
 $$;
 
--- Política de leitura genérica (aplicar a todas as tabelas de dados)
 do $$
 declare t text;
 begin
   foreach t in array array[
-    'sistemas','planos','empresas','assinaturas','consumo_atual','custos','faturas',
-    'cobranca_tentativas','login_attempts','infra_snapshots','tickets_suporte',
-    'mensagens_ticket','alertas','audit_log','incidentes'
+    'sistemas','integracoes','medicoes','planos','empresas','assinaturas','consumo_atual',
+    'custos','gatilhos_custo','provisionamentos','faturas','cobranca_tentativas',
+    'login_attempts','infra_snapshots','tickets_suporte','mensagens_ticket','tarefas',
+    'alertas','audit_log','incidentes','usuarios_master'
   ] loop
-    execute format('create policy %I_read on %I for select using (is_master());', t, t);
+    execute format('alter table central.%I enable row level security;', t);
+    execute format('drop policy if exists %I_read on central.%I;', t, t);
+    execute format('create policy %I_read on central.%I for select using (central.is_master());', t, t);
   end loop;
 end $$;
-
-create policy usuarios_master_self on usuarios_master for select using (id = auth.uid() or is_master());
