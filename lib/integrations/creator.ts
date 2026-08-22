@@ -9,50 +9,85 @@ export function creatorConfigured(): boolean {
   return Boolean(process.env.CREATOR_API_URL && process.env.CREATOR_USER && process.env.CREATOR_PASS);
 }
 
-async function creatorToken(): Promise<string | null> {
+// Lista o que falta configurar, para o diagnóstico apontar direto o buraco.
+function faltando(): string[] {
+  const f: string[] = [];
+  if (!process.env.CREATOR_API_URL) f.push("CREATOR_API_URL");
+  if (!process.env.CREATOR_USER) f.push("CREATOR_USER");
+  if (!process.env.CREATOR_PASS) f.push("CREATOR_PASS");
+  return f;
+}
+
+function baseUrl(): string {
+  return (process.env.CREATOR_API_URL || "").replace(/\/+$/, "");
+}
+
+// Faz login e devolve o token OU uma explicação do porquê falhou.
+async function creatorLogin(): Promise<{ token: string | null; erro?: string }> {
+  const url = `${baseUrl()}/api/auth/login`;
+  const body: Record<string, any> = {
+    username: process.env.CREATOR_USER,
+    password: process.env.CREATOR_PASS,
+  };
+  if (process.env.CREATOR_ORG) body.organization = process.env.CREATOR_ORG;
   try {
-    const res = await fetch(`${process.env.CREATOR_API_URL}/api/auth/login`, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        organization: process.env.CREATOR_ORG || undefined,
-        username: process.env.CREATOR_USER,
-        password: process.env.CREATOR_PASS,
-      }),
+      body: JSON.stringify(body),
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    const j: any = await res.json();
-    return j?.token || null;
-  } catch {
-    return null;
+    const txt = await res.text();
+    if (!res.ok) {
+      let msg = "";
+      try { msg = JSON.parse(txt)?.error || JSON.parse(txt)?.message || ""; } catch { msg = txt.slice(0, 120); }
+      if (res.status === 401 || res.status === 400) {
+        return { token: null, erro: `login recusado (HTTP ${res.status}${msg ? ` – ${msg}` : ""}). Confira CREATOR_USER/CREATOR_PASS${process.env.CREATOR_ORG ? "/CREATOR_ORG" : " (talvez falte CREATOR_ORG)"}.` };
+      }
+      if (res.status === 404) return { token: null, erro: `endpoint ${url} não existe (HTTP 404). Confira CREATOR_API_URL.` };
+      return { token: null, erro: `login falhou (HTTP ${res.status}${msg ? ` – ${msg}` : ""}).` };
+    }
+    let j: any = {};
+    try { j = JSON.parse(txt); } catch {}
+    const token = j?.token || j?.accessToken || j?.jwt || null;
+    if (!token) return { token: null, erro: "login respondeu 200 mas sem token no corpo (formato inesperado)." };
+    return { token };
+  } catch (e: any) {
+    return { token: null, erro: `não alcançou ${url} (${e?.message || "rede"}). Serviço do Render pode estar dormindo/fora do ar.` };
   }
 }
 
-// Puxa os clientes do Creator via API (login + GET /api/clients). Cache 60s.
-async function _getCreatorClients(): Promise<any[] | null> {
-  if (!creatorConfigured()) return null;
-  const token = await creatorToken();
-  if (!token) return null;
+// Puxa os clientes do Creator via API (login + GET /api/clients) com diagnóstico.
+async function fetchCreator(): Promise<{ rows: any[] | null; erro?: string }> {
+  if (!creatorConfigured()) return { rows: null, erro: `falta configurar: ${faltando().join(", ")}` };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { rows: null, erro };
   try {
-    const res = await fetch(`${process.env.CREATOR_API_URL}/api/clients`, {
+    const res = await fetch(`${baseUrl()}/api/clients`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { rows: null, erro: `logou, mas GET /api/clients deu HTTP ${res.status}.` };
     const data: any = await res.json();
-    return Array.isArray(data) ? data : data?.clients || data?.rows || [];
-  } catch {
-    return null;
+    const rows = Array.isArray(data) ? data : data?.clients || data?.rows || [];
+    return { rows };
+  } catch (e: any) {
+    return { rows: null, erro: `logou, mas falhou ao ler clientes (${e?.message || "rede"}).` };
   }
 }
 
-export const getCreatorClients = unstable_cache(_getCreatorClients, ["creator-clients"], { revalidate: 60 });
+const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v2"], { revalidate: 60 });
 
-// Diagnóstico: conecta na API do Creator e conta os clientes.
+// Só as linhas (para a página de clientes).
+export async function getCreatorClients(): Promise<any[] | null> {
+  const { rows } = await _getCreator();
+  return rows;
+}
+
+// Diagnóstico: conecta na API do Creator, conta os clientes e explica falhas.
 export async function creatorStatus(): Promise<{ configurado: boolean; ok: boolean; clientes: number; erro?: string }> {
-  if (!creatorConfigured()) return { configurado: false, ok: false, clientes: 0 };
-  const rows = await getCreatorClients();
-  if (rows === null) return { configurado: true, ok: false, clientes: 0, erro: "login ou API falhou (confira organização/usuário/senha)" };
+  if (!creatorConfigured()) return { configurado: false, ok: false, clientes: 0, erro: `falta: ${faltando().join(", ")}` };
+  const { rows, erro } = await _getCreator();
+  if (rows === null) return { configurado: true, ok: false, clientes: 0, erro };
   return { configurado: true, ok: true, clientes: rows.length };
 }
