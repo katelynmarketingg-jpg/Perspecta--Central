@@ -1,28 +1,43 @@
 import { Card, Pill, SourceTag, Icon } from "@/components/ui";
-import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
+import { getSistemas, receitaSistema } from "@/lib/data";
+import { getContagemPorSistema } from "@/lib/clientes";
+import { creatorStatus } from "@/lib/integrations/creator";
+import { firebaseStatus } from "@/lib/integrations/firebase";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const dotColor = (s: string) =>
   s === "operacional" ? "var(--good)" : s === "degradado" ? "var(--warn)" : s === "com_erro" ? "var(--crit)" : "var(--faint)";
 
 export default async function Infra() {
-  const sistemas = await getSistemas();
-  const empresas = getEmpresas();
+  const [sistemas, contagem, creatorSt, fireSt] = await Promise.all([
+    getSistemas(),
+    getContagemPorSistema(),
+    creatorStatus(),
+    firebaseStatus(),
+  ]);
 
   return (
     <>
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
         <span>
-          Status vem <b>ao vivo</b> do Supabase e da Vercel quando as chaves estão configuradas. O <b>Render</b> (Juris, Creator) ainda não tem integração — esses ficam <b>manuais</b> até existir uma forma melhor.
+          Status <b>ao vivo</b>: Supabase e Vercel pelas chaves, o <b>Creator</b> pela API própria e o <b>Bistro</b> pelo Firebase. Só o <b>Juris</b> (Render) ainda é <b>manual</b> até termos uma forma de medir o Render.
         </span>
       </div>
 
       <div className="sys-grid">
         {sistemas.map((s) => {
-          const emps = empresas.filter((e) => e.sis === s.id);
+          // Creator conecta pela API própria; Bistro pelo Firebase — refletir "ao vivo".
+          const creatorLive = s.id === "creator" && creatorSt.ok;
+          const bistroLive = s.host === "Firebase" && fireSt.ok;
+          const status = creatorLive || bistroLive ? "operacional" : s.status;
+          const source = creatorLive || bistroLive ? "live" : s.statusSource;
+          const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
+          const nClientes = contagem[s.id] ?? 0;
           const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
           return (
             <div className="card sys-card" key={s.id}>
@@ -36,17 +51,17 @@ export default async function Infra() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Pill s={s.status} /><SourceTag source={s.statusSource} />
+                <Pill s={status} /><SourceTag source={source} />
               </div>
 
               <div className="sys-stats">
-                <div className="sys-stat"><div className="n num">{emps.length}</div><div className="l">Clientes</div></div>
+                <div className="sys-stat"><div className="n num">{nClientes}</div><div className="l">Clientes</div></div>
                 <div className="sys-stat"><div className="n num">{BRL(receitaSistema(s.id))}</div><div className="l">MRR</div></div>
                 <div className="sys-stat"><div className="n num">{s.uptime.toFixed(2)}%</div><div className="l">Uptime</div></div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "var(--muted)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Hospedagem</span><b style={{ color: "var(--text)" }}>{s.host}{s.host === "Render" ? " (manual)" : ""}</b></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Hospedagem</span><b style={{ color: "var(--text)" }}>{s.host}{manual ? " (manual)" : creatorLive ? " (API)" : ""}</b></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span>Repositório</span><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.repo}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span>Supabase</span><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.supabaseRef || "—"}</span></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span>Último deploy</span><span>{s.ultimoDeploy ? `${s.ultimoDeploy.estado} · ${s.ultimoDeploy.quando}` : "sem dados"}</span></div>

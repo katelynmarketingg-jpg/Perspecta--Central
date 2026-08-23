@@ -12,7 +12,7 @@ export const maxDuration = 60;
 // Banco de dados de cada sistema (derivado do host e do supabaseRef).
 function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
   if (supabaseRef) return { nome: "Supabase", nota: "Postgres · plano Free · compartilhado Commerce+Juris", cor: "var(--good)" };
-  if (host === "Firebase") return { nome: "Firestore", nota: "Firebase · plano Spark", cor: "var(--warn)" };
+  if (host === "Firebase") return { nome: "Realtime Database", nota: "Firebase · plano Spark", cor: "var(--warn)" };
   return { nome: "sem banco próprio", nota: "ainda usa dados de exemplo", cor: "var(--faint)" };
 }
 
@@ -180,7 +180,7 @@ export default async function Dados() {
           {firestore.map((c) => {
             const cols = Array.from(new Set(c.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
             return (
-              <Card key={c.colecao} title={c.colecao} hint={`${c.amostra.length}+ documentos`} action={<Pill s="ativo" label="Firestore" />}>
+              <Card key={c.colecao} title={c.colecao} hint={`${c.amostra.length}+ documentos`} action={<Pill s="ativo" label="Realtime DB" />}>
                 <div className="tablewrap">
                   <table>
                     <thead><tr>{cols.map((col) => <th key={col}>{col}</th>)}</tr></thead>
