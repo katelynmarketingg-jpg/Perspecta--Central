@@ -76,7 +76,9 @@ async function fetchCreator(): Promise<{ rows: any[] | null; erro?: string }> {
   }
 }
 
-const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v2"], { revalidate: 60 });
+// Cache curto (15s): enquanto se ajusta as variáveis (CREATOR_ORG/USER/PASS) no
+// Vercel, o diagnóstico reflete a correção rápido, sem esperar um minuto.
+const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v3"], { revalidate: 15 });
 
 // Só as linhas (para a página de clientes).
 export async function getCreatorClients(): Promise<any[] | null> {
