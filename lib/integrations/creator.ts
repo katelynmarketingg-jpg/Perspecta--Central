@@ -93,3 +93,76 @@ export async function creatorStatus(): Promise<{ configurado: boolean; ok: boole
   if (rows === null) return { configurado: true, ok: false, clientes: 0, erro };
   return { configurado: true, ok: true, clientes: rows.length };
 }
+
+// ————————————————————————————————————————————————————————————————
+// Acessos / provisionamento (escrita de volta no Creator)
+// ————————————————————————————————————————————————————————————————
+
+export type CreatorMe = { ok: boolean; papel?: string; usuario?: string; escritorio?: string; superadmin: boolean; erro?: string };
+
+// Quem é a conta configurada (papel). Só superadmin cria escritórios.
+async function _creatorMe(): Promise<CreatorMe> {
+  if (!creatorConfigured()) return { ok: false, superadmin: false, erro: `falta: ${faltando().join(", ")}` };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { ok: false, superadmin: false, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (!res.ok) return { ok: false, superadmin: false, erro: `/api/auth/me deu HTTP ${res.status}` };
+    const j: any = await res.json();
+    const papel = j?.role || j?.user?.role;
+    return { ok: true, superadmin: papel === "superadmin", papel, usuario: j?.username || j?.user?.username, escritorio: j?.org_name || j?.org?.name };
+  } catch (e: any) {
+    return { ok: false, superadmin: false, erro: e?.message || "rede" };
+  }
+}
+export const creatorMe = unstable_cache(_creatorMe, ["creator-me-v1"], { revalidate: 15 });
+
+// Lista os escritórios (contas de cliente) do Creator. Precisa de superadmin.
+async function _getCreatorOrgs(): Promise<{ orgs: any[] | null; erro?: string }> {
+  if (!creatorConfigured()) return { orgs: null, erro: `falta: ${faltando().join(", ")}` };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { orgs: null, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/organizations`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (res.status === 403) return { orgs: null, erro: "a conta não é superadmin — só o escritório master lista/cria acessos." };
+    if (!res.ok) return { orgs: null, erro: `GET /api/organizations deu HTTP ${res.status}` };
+    const data: any = await res.json();
+    return { orgs: Array.isArray(data) ? data : data?.rows || [] };
+  } catch (e: any) {
+    return { orgs: null, erro: e?.message || "rede" };
+  }
+}
+export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v1"], { revalidate: 15 });
+
+export type NovoEscritorio = { nome: string; adminUsuario: string; adminSenha: string; adminNome?: string; whatsapp?: string };
+
+// Cria um escritório + login admin no Creator (escrita de volta). Sem cache.
+export async function criarEscritorioCreator(input: NovoEscritorio): Promise<{ ok: boolean; id?: number; erro?: string }> {
+  if (!creatorConfigured()) return { ok: false, erro: `falta configurar: ${faltando().join(", ")}` };
+  if (!input.nome?.trim()) return { ok: false, erro: "informe o nome do escritório." };
+  if (!input.adminUsuario?.trim() || !input.adminSenha) return { ok: false, erro: "informe usuário e senha do admin." };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { ok: false, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/organizations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        name: input.nome.trim(),
+        admin_username: input.adminUsuario.trim(),
+        admin_name: input.adminNome?.trim() || input.adminUsuario.trim(),
+        admin_password: input.adminSenha,
+        whatsapp: input.whatsapp?.trim() || undefined,
+      }),
+      cache: "no-store",
+    });
+    const txt = await res.text();
+    let j: any = {}; try { j = JSON.parse(txt); } catch {}
+    if (res.status === 403) return { ok: false, erro: "a conta não é superadmin — só o escritório master cria acessos." };
+    if (res.status === 409) return { ok: false, erro: j?.error || "já existe um escritório com esse nome." };
+    if (!res.ok) return { ok: false, erro: j?.error || `criar deu HTTP ${res.status}` };
+    return { ok: true, id: j?.id };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message || "rede" };
+  }
+}
