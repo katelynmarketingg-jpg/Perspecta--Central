@@ -134,6 +134,32 @@ async function _getCreatorOrgs(): Promise<{ orgs: any[] | null; erro?: string }>
 }
 export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v1"], { revalidate: 15 });
 
+export type CreatorReceita = { mrr: number; previsto: number; pagantes: number; emTeste: number; expirados: number; total: number };
+
+// Receita do Creator (o que os escritórios pagam). Vem pronto da API dele.
+async function _getCreatorReceita(): Promise<{ receita: CreatorReceita | null; erro?: string }> {
+  if (!creatorConfigured()) return { receita: null, erro: `falta: ${faltando().join(", ")}` };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { receita: null, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/organizations/revenue`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+    if (res.status === 403) return { receita: null, erro: "a conta não é superadmin — só o master vê a receita." };
+    if (!res.ok) return { receita: null, erro: `GET /revenue deu HTTP ${res.status}` };
+    const j: any = await res.json();
+    return { receita: {
+      mrr: Number(j?.mrr) || 0,
+      previsto: Number(j?.previsto) || 0,
+      pagantes: Number(j?.pagantes) || 0,
+      emTeste: Number(j?.em_teste) || 0,
+      expirados: Number(j?.expirados) || 0,
+      total: Number(j?.total_agencias) || 0,
+    } };
+  } catch (e: any) {
+    return { receita: null, erro: e?.message || "rede" };
+  }
+}
+export const getCreatorReceita = unstable_cache(_getCreatorReceita, ["creator-receita-v1"], { revalidate: 30 });
+
 export type NovoEscritorio = { nome: string; adminUsuario: string; adminSenha: string; adminNome?: string; whatsapp?: string };
 
 // Cria um escritório + login admin no Creator (escrita de volta). Sem cache.
