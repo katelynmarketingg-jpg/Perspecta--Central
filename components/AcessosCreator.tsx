@@ -15,6 +15,11 @@ const inp: React.CSSProperties = {
   padding: "10px 12px", color: "var(--text)", fontSize: 14, width: "100%",
 };
 const lbl: React.CSSProperties = { fontSize: 12, color: "var(--muted)", fontWeight: 550, display: "block", marginBottom: 5 };
+const aBtn: React.CSSProperties = {
+  background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 7,
+  padding: "5px 9px", color: "var(--text)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+};
+const aBtnDanger: React.CSSProperties = { ...aBtn, color: "var(--crit)", borderColor: "var(--crit)" };
 
 function subInfo(s?: string): { label: string; st: string } {
   if (s === "master") return { label: "master", st: "inativo" };
@@ -35,8 +40,34 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
+  const [busy, setBusy] = useState<number | null>(null);
 
   const podeCriar = me.ok && me.superadmin;
+
+  async function agir(acao: "trial" | "ativar" | "desativar" | "excluir", o: Org) {
+    const perguntas: Record<string, string> = {
+      trial: `Estender o trial de "${o.name}" em 15 dias?`,
+      ativar: `Reativar o escritório "${o.name}"?`,
+      desativar: `Desativar o escritório "${o.name}"? Os logins dele param de entrar.`,
+      excluir: `EXCLUIR "${o.name}" de vez? Isso apaga o escritório e todos os dados dele no Creator. Não dá pra desfazer.`,
+    };
+    if (!confirm(perguntas[acao])) return;
+    setErr(""); setOk(""); setBusy(o.id);
+    try {
+      const r = await fetch("/api/acessos/creator", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao, id: o.id, dias: acao === "trial" ? 15 : undefined }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setErr(j.error || "Não foi possível concluir."); setBusy(null); return; }
+      setOk(`Feito: "${o.name}" — ${acao === "trial" ? "trial estendido" : acao === "excluir" ? "excluído" : acao === "ativar" ? "reativado" : "desativado"}.`);
+      router.refresh();
+    } catch {
+      setErr("Falha de conexão. Tente novamente.");
+    }
+    setBusy(null);
+  }
 
   async function criar() {
     setErr(""); setOk("");
@@ -115,10 +146,12 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
         ) : (
           <div className="tablewrap">
             <table>
-              <thead><tr><th>Escritório</th><th>Situação</th><th>Usuários</th><th>Clientes</th><th>Plano</th><th>Trial</th></tr></thead>
+              <thead><tr><th>Escritório</th><th>Situação</th><th>Usuários</th><th>Clientes</th><th>Plano</th><th>Trial</th>{podeCriar && <th>Ações</th>}</tr></thead>
               <tbody>
                 {orgs.map((o) => {
                   const s = subInfo(o.subscription);
+                  const master = o.subscription === "master";
+                  const bsy = busy === o.id;
                   return (
                     <tr key={o.id}>
                       <td><span className="sys-tag"><span className="sd" style={{ background: cor }} />{o.name}</span></td>
@@ -127,6 +160,18 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
                       <td className="num">{o.clients_count ?? "—"}</td>
                       <td>{o.plan_name || "—"}</td>
                       <td className="num">{o.trial_days_left != null ? (o.trial_days_left >= 0 ? `${o.trial_days_left}d` : "expirado") : "—"}</td>
+                      {podeCriar && (
+                        <td>
+                          {master ? <span style={{ color: "var(--faint)", fontSize: 12 }}>—</span> : (
+                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <button type="button" disabled={bsy} onClick={() => agir("trial", o)} style={aBtn}>+15d trial</button>
+                              <button type="button" disabled={bsy} onClick={() => agir("desativar", o)} style={aBtn}>Desativar</button>
+                              <button type="button" disabled={bsy} onClick={() => agir("ativar", o)} style={aBtn}>Reativar</button>
+                              <button type="button" disabled={bsy} onClick={() => agir("excluir", o)} style={aBtnDanger}>Excluir</button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

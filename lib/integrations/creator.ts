@@ -166,3 +166,31 @@ export async function criarEscritorioCreator(input: NovoEscritorio): Promise<{ o
     return { ok: false, erro: e?.message || "rede" };
   }
 }
+
+export type AcaoEscritorio = "trial" | "ativar" | "desativar" | "excluir";
+
+// Edita um escritório existente no Creator (estender trial, ativar/desativar,
+// excluir). Precisa de superadmin. Sem cache.
+export async function acaoEscritorioCreator(acao: AcaoEscritorio, id: number, dias = 15): Promise<{ ok: boolean; erro?: string }> {
+  if (!creatorConfigured()) return { ok: false, erro: `falta configurar: ${faltando().join(", ")}` };
+  if (!id) return { ok: false, erro: "escritório inválido." };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { ok: false, erro };
+  const auth = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+  try {
+    let res: Response;
+    if (acao === "trial") {
+      res = await fetch(`${baseUrl()}/api/organizations/${id}/extend-trial`, { method: "POST", headers: auth, body: JSON.stringify({ days: dias }), cache: "no-store" });
+    } else if (acao === "excluir") {
+      res = await fetch(`${baseUrl()}/api/organizations/${id}`, { method: "DELETE", headers: auth, cache: "no-store" });
+    } else {
+      res = await fetch(`${baseUrl()}/api/organizations/${id}`, { method: "PUT", headers: auth, body: JSON.stringify({ active: acao === "ativar" }), cache: "no-store" });
+    }
+    if (res.status === 403) return { ok: false, erro: "a conta não é superadmin." };
+    if (res.status === 400) { const j: any = await res.json().catch(() => ({})); return { ok: false, erro: j?.error || "ação não permitida (o master não pode ser alterado assim)." }; }
+    if (!res.ok) return { ok: false, erro: `ação deu HTTP ${res.status}` };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message || "rede" };
+  }
+}
