@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Icon, Pill } from "@/components/ui";
+import AcessosLogins from "@/components/AcessosLogins";
 
 type Me = { ok: boolean; papel?: string; usuario?: string; escritorio?: string; superadmin: boolean; erro?: string };
 type Org = {
@@ -41,6 +42,7 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState<number | null>(null);
+  const [orgSel, setOrgSel] = useState<{ id: number; name: string } | null>(null);
 
   const podeCriar = me.ok && me.superadmin;
 
@@ -164,6 +166,7 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
                         <td>
                           {master ? <span style={{ color: "var(--faint)", fontSize: 12 }}>—</span> : (
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              <button type="button" onClick={() => setOrgSel(orgSel?.id === o.id ? null : { id: o.id, name: o.name })} style={{ ...aBtn, borderColor: orgSel?.id === o.id ? cor : "var(--border)", color: orgSel?.id === o.id ? cor : "var(--text)" }}>Logins</button>
                               <button type="button" disabled={bsy} onClick={() => agir("trial", o)} style={aBtn}>+15d trial</button>
                               <button type="button" disabled={bsy} onClick={() => agir("desativar", o)} style={aBtn}>Desativar</button>
                               <button type="button" disabled={bsy} onClick={() => agir("ativar", o)} style={aBtn}>Reativar</button>
@@ -180,6 +183,12 @@ export default function AcessosCreator({ me, orgs, orgsErro, cor }: { me: Me; or
           </div>
         )}
       </Card>
+
+      {orgSel && (
+        <div style={{ marginTop: 16 }}>
+          <AcessosLogins orgId={orgSel.id} orgNome={orgSel.name} cor={cor} podeCriar={podeCriar} />
+        </div>
+      )}
     </>
   );
 }
