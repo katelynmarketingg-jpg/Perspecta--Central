@@ -1,7 +1,7 @@
 import { Card, Pill, SourceTag, Icon } from "@/components/ui";
 import { getSistemas, receitaSistema } from "@/lib/data";
 import { getContagemPorSistema } from "@/lib/clientes";
-import { creatorStatus } from "@/lib/integrations/creator";
+import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus } from "@/lib/integrations/firebase";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -13,12 +13,14 @@ const dotColor = (s: string) =>
   s === "operacional" ? "var(--good)" : s === "degradado" ? "var(--warn)" : s === "com_erro" ? "var(--crit)" : "var(--faint)";
 
 export default async function Infra() {
-  const [sistemas, contagem, creatorSt, fireSt] = await Promise.all([
+  const [sistemas, contagem, creatorSt, fireSt, creatorRec] = await Promise.all([
     getSistemas(),
     getContagemPorSistema(),
     creatorStatus(),
     firebaseStatus(),
+    getCreatorReceita(),
   ]);
+  const mrrCreator = creatorRec.receita?.mrr ?? null;
 
   return (
     <>
@@ -38,6 +40,7 @@ export default async function Infra() {
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
           const nClientes = contagem[s.id] ?? 0;
+          const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(s.id);
           const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
           return (
             <div className="card sys-card" key={s.id}>
@@ -56,7 +59,7 @@ export default async function Infra() {
 
               <div className="sys-stats">
                 <div className="sys-stat"><div className="n num">{nClientes}</div><div className="l">Clientes</div></div>
-                <div className="sys-stat"><div className="n num">{BRL(receitaSistema(s.id))}</div><div className="l">MRR</div></div>
+                <div className="sys-stat"><div className="n num">{BRL(mrr)}</div><div className="l">MRR</div></div>
                 <div className="sys-stat"><div className="n num">{s.uptime.toFixed(2)}%</div><div className="l">Uptime</div></div>
               </div>
 
