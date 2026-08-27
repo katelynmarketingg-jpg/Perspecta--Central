@@ -194,3 +194,83 @@ export async function acaoEscritorioCreator(acao: AcaoEscritorio, id: number, di
     return { ok: false, erro: e?.message || "rede" };
   }
 }
+
+// ————————————————————————————————————————————————————————————————
+// Logins DENTRO de um escritório (usuários da equipe daquele cliente)
+// ————————————————————————————————————————————————————————————————
+// O superadmin direciona a ação a um escritório pelo header x-org-id.
+
+export type CreatorUser = { id: number; name: string; username: string; role: string; active: boolean };
+
+function authOrg(token: string, orgId: number): Record<string, string> {
+  return { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "x-org-id": String(orgId) };
+}
+
+// Lista os logins de um escritório.
+export async function getCreatorUsers(orgId: number): Promise<{ users: CreatorUser[] | null; erro?: string }> {
+  if (!creatorConfigured()) return { users: null, erro: `falta: ${faltando().join(", ")}` };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { users: null, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/users`, { headers: authOrg(token, orgId), cache: "no-store" });
+    if (res.status === 403) return { users: null, erro: "a conta não é superadmin/admin." };
+    if (!res.ok) return { users: null, erro: `GET /api/users deu HTTP ${res.status}` };
+    const data: any = await res.json();
+    const arr = Array.isArray(data) ? data : data?.rows || [];
+    return { users: arr.map((u: any) => ({ id: u.id, name: u.name, username: u.username, role: u.role, active: !!u.active })) };
+  } catch (e: any) {
+    return { users: null, erro: e?.message || "rede" };
+  }
+}
+
+export type NovoUsuario = { nome: string; usuario: string; senha: string; papel?: "member" | "admin" };
+
+// Cria um login novo dentro de um escritório.
+export async function criarUsuarioCreator(orgId: number, input: NovoUsuario): Promise<{ ok: boolean; erro?: string }> {
+  if (!creatorConfigured()) return { ok: false, erro: `falta configurar: ${faltando().join(", ")}` };
+  if (!input.nome?.trim() || !input.usuario?.trim() || !input.senha) return { ok: false, erro: "informe nome, usuário e senha." };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { ok: false, erro };
+  try {
+    const res = await fetch(`${baseUrl()}/api/users`, {
+      method: "POST",
+      headers: authOrg(token, orgId),
+      body: JSON.stringify({ name: input.nome.trim(), username: input.usuario.trim(), password: input.senha, role: input.papel === "admin" ? "admin" : "member" }),
+      cache: "no-store",
+    });
+    const j: any = await res.json().catch(() => ({}));
+    if (res.status === 409) return { ok: false, erro: j?.error || "usuário já existe nesse escritório." };
+    if (res.status === 403) return { ok: false, erro: "a conta não é superadmin/admin." };
+    if (!res.ok) return { ok: false, erro: j?.error || `criar deu HTTP ${res.status}` };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message || "rede" };
+  }
+}
+
+export type AcaoUsuario = "senha" | "ativar" | "desativar" | "excluir";
+
+// Edita um login: resetar senha, ativar/desativar, excluir.
+export async function acaoUsuarioCreator(acao: AcaoUsuario, orgId: number, userId: number, senha?: string): Promise<{ ok: boolean; erro?: string }> {
+  if (!creatorConfigured()) return { ok: false, erro: `falta configurar: ${faltando().join(", ")}` };
+  if (!orgId || !userId) return { ok: false, erro: "login inválido." };
+  if (acao === "senha" && !senha) return { ok: false, erro: "informe a nova senha." };
+  const { token, erro } = await creatorLogin();
+  if (!token) return { ok: false, erro };
+  try {
+    let res: Response;
+    if (acao === "excluir") {
+      res = await fetch(`${baseUrl()}/api/users/${userId}`, { method: "DELETE", headers: authOrg(token, orgId), cache: "no-store" });
+    } else {
+      const body = acao === "senha" ? { password: senha } : { active: acao === "ativar" };
+      res = await fetch(`${baseUrl()}/api/users/${userId}`, { method: "PUT", headers: authOrg(token, orgId), body: JSON.stringify(body), cache: "no-store" });
+    }
+    const j: any = await res.json().catch(() => ({}));
+    if (res.status === 403) return { ok: false, erro: "a conta não é superadmin/admin." };
+    if (res.status === 400) return { ok: false, erro: j?.error || "ação não permitida." };
+    if (!res.ok) return { ok: false, erro: j?.error || `ação deu HTTP ${res.status}` };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, erro: e?.message || "rede" };
+  }
+}
