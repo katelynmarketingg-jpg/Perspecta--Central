@@ -85,12 +85,14 @@ export async function getGatilhos(): Promise<Gatilho[]> {
 }
 
 // Resumo: quanto você paga HOJE e quanto vai pagar quando todos os pacotes
-// pagos entrarem (todo o grátis esgotado).
-export async function getResumoCusto(): Promise<{ atualBrl: number; previstoBrl: number; itens: Gatilho[] }> {
-  const itens = await getGatilhos();
-  const atualBrl = itens.reduce((a, g) => a + g.custoAtualBrl, 0);
-  const previstoBrl = itens.reduce((a, g) => a + g.custoPrevistoBrl, 0);
-  return { atualBrl, previstoBrl, itens };
+// pagos entrarem (todo o grátis esgotado). Inclui os custos manuais.
+export async function getResumoCusto(): Promise<{ atualBrl: number; previstoBrl: number; itens: Gatilho[]; manualBrl: number }> {
+  const { listarCustosManuais } = await import("./custos-manuais");
+  const [itens, manuais] = await Promise.all([getGatilhos(), listarCustosManuais()]);
+  const manualBrl = manuais.reduce((a, c) => a + c.valorBrl, 0);
+  const atualBrl = itens.reduce((a, g) => a + g.custoAtualBrl, 0) + manualBrl;
+  const previstoBrl = itens.reduce((a, g) => a + g.custoPrevistoBrl, 0) + manualBrl;
+  return { atualBrl, previstoBrl, itens, manualBrl };
 }
 
 function brl(n: number) { return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
