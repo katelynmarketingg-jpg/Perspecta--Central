@@ -1,6 +1,5 @@
 import { Card, Pill, SourceTag, Icon } from "@/components/ui";
 import { getSistemas, receitaSistema } from "@/lib/data";
-import { getContagemPorSistema } from "@/lib/clientes";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus } from "@/lib/integrations/firebase";
 import { BRL, nomeCurto } from "@/lib/format";
@@ -13,9 +12,8 @@ const dotColor = (s: string) =>
   s === "operacional" ? "var(--good)" : s === "degradado" ? "var(--warn)" : s === "com_erro" ? "var(--crit)" : "var(--faint)";
 
 export default async function Infra() {
-  const [sistemas, contagem, creatorSt, fireSt, creatorRec] = await Promise.all([
+  const [sistemas, creatorSt, fireSt, creatorRec] = await Promise.all([
     getSistemas(),
-    getContagemPorSistema(),
     creatorStatus(),
     firebaseStatus(),
     getCreatorReceita(),
@@ -39,7 +37,9 @@ export default async function Infra() {
           const status = creatorLive || bistroLive ? "operacional" : s.status;
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
-          const nClientes = contagem[s.id] ?? 0;
+          // "Contas" = empresas que pagam/usam o sistema. Confiável só no Creator
+          // (escritórios) por ora; nos outros fica "—" até mapear a tabela de contas.
+          const contas: number | null = s.id === "creator" ? (creatorRec.receita?.total ?? null) : null;
           const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(s.id);
           const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
           return (
@@ -58,7 +58,7 @@ export default async function Infra() {
               </div>
 
               <div className="sys-stats">
-                <div className="sys-stat"><div className="n num">{nClientes}</div><div className="l">Clientes</div></div>
+                <div className="sys-stat"><div className="n num">{contas == null ? "—" : contas}</div><div className="l">Contas</div></div>
                 <div className="sys-stat"><div className="n num">{BRL(mrr)}</div><div className="l">MRR</div></div>
                 <div className="sys-stat"><div className="n num">{s.uptime.toFixed(2)}%</div><div className="l">Uptime</div></div>
               </div>
