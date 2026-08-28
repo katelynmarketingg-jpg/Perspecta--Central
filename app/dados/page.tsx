@@ -1,7 +1,8 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
-import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
-import { firebaseConfigured, findFirebaseNodes, firebaseStatus } from "@/lib/integrations/firebase";
+import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus, getContagemContas } from "@/lib/integrations/supabase";
+import { firebaseConfigured, findFirebaseNodes, firebaseStatus, getContagemContasBistro } from "@/lib/integrations/firebase";
+import { getCreatorReceita } from "@/lib/integrations/creator";
 import { creatorStatus } from "@/lib/integrations/creator";
 import { renderConfigured, renderStatus, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
 import { nomeCurto, BRL } from "@/lib/format";
@@ -46,6 +47,18 @@ export default async function Dados() {
   const creatorSt = await creatorStatus();
   const renderSt = await renderStatus();
   const renderCustos = renderConfigured() ? (await getRenderCustos()).custos : null;
+  // Conferência das "contas" (empresas que pagam) por sistema e de onde vem o número.
+  const [contasSb, bistroContas, creatorRec] = await Promise.all([
+    refSupabase && supabaseConfigured() ? getContagemContas(refSupabase) : Promise.resolve({ juris: null, commerce: null, candidatas: [] as any[], jurisTabela: undefined, commerceTabela: undefined }),
+    firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as any[], no: undefined }),
+    getCreatorReceita(),
+  ]);
+  const contasConf = [
+    { sis: "Commerce", n: contasSb.commerce, fonte: contasSb.commerceTabela ? `Supabase · ${contasSb.commerceTabela}` : "tabela não encontrada" },
+    { sis: "Juris", n: contasSb.juris, fonte: contasSb.jurisTabela ? `Supabase · ${contasSb.jurisTabela}` : "tabela não encontrada" },
+    { sis: "Creator", n: creatorRec.receita?.total ?? null, fonte: "Creator API · escritórios" },
+    { sis: "Bistro", n: bistroContas.n, fonte: bistroContas.no ? `Firebase · nó "${bistroContas.no}"` : "nó não encontrado" },
+  ];
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
   // Acha o custo Render de um serviço pelo host (ex.: saas-agency-k9ft.onrender.com).
@@ -146,6 +159,26 @@ export default async function Dados() {
               ))}
             </tbody>
           </table>
+        </div>
+      </Card>
+
+      <Card title="Contas por sistema" hint="quantas empresas pagam/usam · de onde vem o número">
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Sistema</th><th className="r">Contas</th><th>Fonte do número</th></tr></thead>
+            <tbody>
+              {contasConf.map((c) => (
+                <tr key={c.sis}>
+                  <td style={{ fontWeight: 600 }}>{c.sis}</td>
+                  <td className="r num" style={{ fontWeight: 650, color: c.n == null ? "var(--warn)" : "var(--text)" }}>{c.n == null ? "a mapear" : c.n}</td>
+                  <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{c.fonte}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ marginTop: 8, fontSize: 12, color: "var(--faint)" }}>
+          Se algum número não bater com a realidade, me diga o certo — eu aponto a tabela/nó correto.
         </div>
       </Card>
 

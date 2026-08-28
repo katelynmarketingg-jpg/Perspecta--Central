@@ -1,7 +1,8 @@
 import { Card, Pill, SourceTag, Icon } from "@/components/ui";
 import { getSistemas, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
-import { firebaseStatus } from "@/lib/integrations/firebase";
+import { firebaseStatus, firebaseConfigured, getContagemContasBistro } from "@/lib/integrations/firebase";
+import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supabase";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +13,24 @@ const dotColor = (s: string) =>
   s === "operacional" ? "var(--good)" : s === "degradado" ? "var(--warn)" : s === "com_erro" ? "var(--crit)" : "var(--faint)";
 
 export default async function Infra() {
-  const [sistemas, creatorSt, fireSt, creatorRec] = await Promise.all([
-    getSistemas(),
+  const sistemas = await getSistemas();
+  const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
+  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas] = await Promise.all([
     creatorStatus(),
     firebaseStatus(),
     getCreatorReceita(),
+    refSb && supabaseConfigured() ? getContagemContas(refSb) : Promise.resolve({ juris: null, commerce: null, candidatas: [] as any[] }),
+    firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as any[] }),
   ]);
   const mrrCreator = creatorRec.receita?.mrr ?? null;
+
+  // "Contas" (empresas que pagam/usam) por sistema, de fontes reais.
+  const contasPorSistema: Record<string, number | null> = {
+    creator: creatorRec.receita?.total ?? null,
+    juris: contasSb.juris,
+    commerce: contasSb.commerce,
+    bistro: bistroContas.n,
+  };
 
   return (
     <>
@@ -37,9 +49,8 @@ export default async function Infra() {
           const status = creatorLive || bistroLive ? "operacional" : s.status;
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
-          // "Contas" = empresas que pagam/usam o sistema. Confiável só no Creator
-          // (escritórios) por ora; nos outros fica "—" até mapear a tabela de contas.
-          const contas: number | null = s.id === "creator" ? (creatorRec.receita?.total ?? null) : null;
+          // "Contas" = empresas que pagam/usam o sistema (fontes reais por sistema).
+          const contas: number | null = contasPorSistema[s.id] ?? null;
           const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(s.id);
           const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
           return (
