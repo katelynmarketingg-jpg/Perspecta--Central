@@ -68,10 +68,9 @@ export default async function Infra() {
                 <Pill s={status} /><SourceTag source={source} />
               </div>
 
-              <div className="sys-stats">
-                <div className="sys-stat"><div className="n num">{contas == null ? "—" : contas}</div><div className="l">Contas</div></div>
-                <div className="sys-stat"><div className="n num">{BRL(mrr)}</div><div className="l">MRR</div></div>
-                <div className="sys-stat"><div className="n num">{s.uptime.toFixed(2)}%</div><div className="l">Uptime</div></div>
+              <div className="sys-stats" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
+                <div className="sys-stat"><div className="n num">{contas == null ? "—" : contas}</div><div className="l">Empresas</div></div>
+                <div className="sys-stat"><div className="n num">{BRL(mrr)}</div><div className="l">Receita / mês</div></div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "var(--muted)" }}>
