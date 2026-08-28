@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 /* Paleta e fontes Perspecta Creator: terracota sobre cinzas quentes (stone).
    3 climas: escuro (preto), claro (branco), bege (sépia). Sidebar terracota nos claros. */
@@ -11,7 +11,7 @@
   --side-bg:#0c0a09; --side-border:#26221f; --side-fg:#a8a29e; --side-fg-strong:#fafaf9; --side-active:var(--accent); --side-hover:rgba(250,250,249,0.06);
   --shadow:0 1px 2px rgba(0,0,0,0.5),0 12px 32px rgba(0,0,0,0.45);
   --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
-  --sans:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --sans:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --display:"Outfit",var(--sans);
 }
 :root[data-theme="light"]{

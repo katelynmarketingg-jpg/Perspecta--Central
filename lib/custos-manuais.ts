@@ -47,6 +47,18 @@ export async function addCustoManual(nome: string, valorBrl: number, sistemaId: 
   return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível salvar." };
 }
 
+export async function updateCustoManual(id: string, nome: string, valorBrl: number, sistemaId: string | null): Promise<{ ok: boolean; erro?: string }> {
+  const r = await ref();
+  if (!r) return { ok: false, erro: "Supabase não configurado." };
+  if (!nome?.trim()) return { ok: false, erro: "Informe o nome do custo." };
+  const idSafe = id.replace(/[^a-f0-9-]/gi, "");
+  const nomeSafe = nome.trim().slice(0, 120).replace(/'/g, "''");
+  const val = Number(valorBrl) || 0;
+  const sisSafe = sistemaId ? `'${sistemaId.replace(/[^a-z0-9_-]/gi, "")}'` : "null";
+  const res = await runSupabaseQuery(r, `update central.custos_manuais set nome='${nomeSafe}', valor_brl=${val}, sistema_id=${sisSafe} where id='${idSafe}';`);
+  return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível atualizar." };
+}
+
 export async function removerCustoManual(id: string): Promise<{ ok: boolean }> {
   const r = await ref();
   if (!r) return { ok: false };

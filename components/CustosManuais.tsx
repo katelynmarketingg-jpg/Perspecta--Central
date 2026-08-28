@@ -19,6 +19,7 @@ export default function CustosManuais({ sistemas, custos }: { sistemas: Sis[]; c
   const [nome, setNome] = useState("");
   const [valor, setValor] = useState(0);
   const [sistemaId, setSistemaId] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState("");
@@ -26,18 +27,25 @@ export default function CustosManuais({ sistemas, custos }: { sistemas: Sis[]; c
   const nomeSis = (id: string | null) => (id ? sistemas.find((s) => s.id === id)?.nome || id : "Todos os sistemas");
   const corSis = (id: string | null) => (id ? sistemas.find((s) => s.id === id)?.cor || "var(--accent)" : "var(--muted)");
 
-  async function adicionar() {
+  function editar(c: Custo) {
+    setEditId(c.id); setNome(c.nome); setValor(c.valorBrl); setSistemaId(c.sistemaId || ""); setErr("");
+  }
+  function cancelar() {
+    setEditId(null); setNome(""); setValor(0); setSistemaId(""); setErr("");
+  }
+
+  async function salvar() {
     setErr("");
     if (!nome.trim() || valor <= 0) { setErr("Preencha o nome e um valor maior que zero."); return; }
     setLoading(true);
     try {
       const r = await fetch("/api/custos", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, valorBrl: valor, sistemaId: sistemaId || null }),
+        method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editId || undefined, nome, valorBrl: valor, sistemaId: sistemaId || null }),
       });
       const j = await r.json();
       if (!r.ok) { setErr(j.error || "Não foi possível salvar."); setLoading(false); return; }
-      setNome(""); setValor(0); setSistemaId("");
+      cancelar();
       router.refresh();
     } catch { setErr("Falha de conexão."); }
     setLoading(false);
@@ -64,10 +72,13 @@ export default function CustosManuais({ sistemas, custos }: { sistemas: Sis[]; c
             {sistemas.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
           </select>
         </div>
-        <button type="button" onClick={adicionar} disabled={loading}
-          style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, fontSize: 14, cursor: "pointer", height: 40 }}>
-          {loading ? "…" : "+ Adicionar"}
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={salvar} disabled={loading}
+            style={{ background: "var(--accent)", color: "#fff", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, fontSize: 14, cursor: "pointer", height: 40, whiteSpace: "nowrap" }}>
+            {loading ? "…" : editId ? "Salvar" : "+ Adicionar"}
+          </button>
+          {editId && <button type="button" onClick={cancelar} style={{ background: "var(--panel-2)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px", fontSize: 13, cursor: "pointer", height: 40 }}>Cancelar</button>}
+        </div>
       </div>
       {err && <div style={{ color: "var(--crit)", fontSize: 13, marginTop: 8 }}>{err}</div>}
 
@@ -81,7 +92,10 @@ export default function CustosManuais({ sistemas, custos }: { sistemas: Sis[]; c
                   <td style={{ fontWeight: 600 }}>{c.nome}</td>
                   <td><span className="sys-tag"><span className="sd" style={{ background: corSis(c.sistemaId) }} />{nomeSis(c.sistemaId)}</span></td>
                   <td className="r num" style={{ fontWeight: 650 }}>{BRL(c.valorBrl)}</td>
-                  <td><button type="button" disabled={busy === c.id} onClick={() => remover(c.id)} style={{ background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: 16 }}>×</button></td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button type="button" onClick={() => editar(c)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 7, color: "var(--text)", cursor: "pointer", fontSize: 12, fontWeight: 600, padding: "4px 9px", marginRight: 6 }}>Editar</button>
+                    <button type="button" disabled={busy === c.id} onClick={() => remover(c.id)} style={{ background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: 16 }}>×</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
