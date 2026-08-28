@@ -1,35 +1,13 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
-import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus, getContagemContas } from "@/lib/integrations/supabase";
-import { firebaseConfigured, findFirebaseNodes, firebaseStatus, getContagemContasBistro } from "@/lib/integrations/firebase";
-import { getCreatorReceita } from "@/lib/integrations/creator";
+import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
+import { firebaseConfigured, findFirebaseNodes, firebaseStatus } from "@/lib/integrations/firebase";
 import { creatorStatus } from "@/lib/integrations/creator";
-import { renderConfigured, renderStatus, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
-import { nomeCurto, BRL } from "@/lib/format";
+import { renderStatus } from "@/lib/integrations/render";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-// Banco de dados de cada sistema (derivado do host e do supabaseRef).
-function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
-  if (supabaseRef) return { nome: "Supabase", nota: "Postgres · plano Free · compartilhado Commerce+Juris", cor: "var(--good)" };
-  if (host === "Firebase") return { nome: "Realtime Database", nota: "Firebase · plano Spark", cor: "var(--warn)" };
-  return { nome: "sem banco próprio", nota: "ainda usa dados de exemplo", cor: "var(--faint)" };
-}
-
-// Custo real de infra hoje. Vercel/Firebase no grátis; Render lido ao vivo pela API.
-function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): { valor: number | null; nota: string } {
-  if (!publicado) return { valor: 0, nota: "não publicado" };
-  if (host === "Vercel") return { valor: 0, nota: "Vercel Hobby · grátis" };
-  if (host === "Firebase") return { valor: 0, nota: "Firebase Spark · grátis" };
-  if (host === "Render") {
-    if (rc && rc.totalUsd != null) return { valor: rc.totalUsd * BRL_POR_USD, nota: `US$ ${rc.totalUsd.toFixed(2)}/mês · ${rc.detalhe}` };
-    if (rc) return { valor: null, nota: `Render · ${rc.detalhe}` };
-    return { valor: null, nota: "Render · confirmar tier" };
-  }
-  return { valor: 0, nota: "—" };
-}
 
 export default async function Dados() {
   const sistemas = await getSistemas();
@@ -46,53 +24,19 @@ export default async function Dados() {
   ]);
   const creatorSt = await creatorStatus();
   const renderSt = await renderStatus();
-  const renderCustos = renderConfigured() ? (await getRenderCustos()).custos : null;
-  // Conferência das "contas" (empresas que pagam) por sistema e de onde vem o número.
-  const [contasSb, bistroContas, creatorRec] = await Promise.all([
-    refSupabase && supabaseConfigured() ? getContagemContas(refSupabase) : Promise.resolve({ juris: null, commerce: null, candidatas: [] as any[], jurisTabela: undefined, commerceTabela: undefined }),
-    firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as string[] }),
-    getCreatorReceita(),
-  ]);
-  const contasConf = [
-    { sis: "Commerce", n: contasSb.commerce, fonte: contasSb.commerceTabela ? `Supabase · ${contasSb.commerceTabela}` : "tabela não encontrada" },
-    { sis: "Juris", n: contasSb.juris, fonte: contasSb.jurisTabela ? `Supabase · ${contasSb.jurisTabela}` : "tabela não encontrada" },
-    { sis: "Creator", n: creatorRec.receita?.total ?? null, fonte: "Creator API · escritórios" },
-    { sis: "Bistro", n: bistroContas.n, fonte: bistroContas.candidatos.length ? `Firebase · estabelecimentos (${bistroContas.candidatos.join(", ")})` : "estabelecimentos (slug__) não encontrados" },
-  ];
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
-
-  // Acha o custo Render de um serviço pelo host (ex.: saas-agency-k9ft.onrender.com).
-  function renderCustoDoSistema(url: string): RenderCusto | null {
-    if (!renderCustos) return null;
-    const host = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase();
-    return renderCustos.find((c) => c.servico.host?.toLowerCase() === host)
-      || renderCustos.find((c) => c.servico.nome && host.includes(c.servico.nome.toLowerCase()))
-      || null;
-  }
-
-  const linhas = sistemas.map((s) => {
-    const publicado = !s.url.includes("não publicado");
-    return {
-      s,
-      publicado,
-      banco: bancoDe(s.host, s.supabaseRef),
-      custo: custoInfra(s.host, publicado, s.host === "Render" ? renderCustoDoSistema(s.url) : null),
-    };
-  });
-  const custoTotal = linhas.reduce((a, l) => a + (l.custo.valor ?? 0), 0);
-  const temRender = linhas.some((l) => l.custo.valor === null);
 
   return (
     <>
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Mapa real: <b>onde cada sistema roda</b>, <b>qual banco</b> usa e o <b>custo de infra</b>.{tabelas ? ` Supabase conectado ao vivo — ${tabelas.length} tabelas no projeto Commerce+Juris.` : ""}</span>
+        <span>Aqui é só pra <b>achar onde estão os clientes e logins de cada sistema</b> dentro do banco. Pra ver onde cada sistema roda, o banco que usa e o custo, veja a aba <b>Sistemas</b>.{tabelas ? ` Supabase conectado ao vivo — ${tabelas.length} tabelas no projeto Commerce+Juris.` : ""}</span>
       </div>
 
-      <Card title="Diagnóstico de conexão" hint="cada integração conectou de verdade?">
+      <Card title="Cada fonte de dados está conectada?" hint="Supabase, Firebase, Creator e Render">
         <div className="tablewrap">
           <table>
-            <thead><tr><th>Integração</th><th>Status</th><th className="r">Encontrado</th><th>Detalhe</th></tr></thead>
+            <thead><tr><th>Fonte</th><th>Status</th><th className="r">Encontrado</th><th>Detalhe</th></tr></thead>
             <tbody>
               <tr>
                 <td style={{ fontWeight: 600 }}>Supabase (Commerce+Juris)</td>
@@ -120,65 +64,6 @@ export default async function Dados() {
               </tr>
             </tbody>
           </table>
-        </div>
-      </Card>
-
-      <Card title="Infraestrutura & custo por sistema" hint="hospedagem · banco · custo real">
-        <div className="tablewrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Sistema</th>
-                <th>Onde roda</th>
-                <th>Banco de dados</th>
-                <th className="r">Custo infra / mês</th>
-              </tr>
-            </thead>
-            <tbody>
-              {linhas.map(({ s, publicado, banco, custo }) => (
-                <tr key={s.id}>
-                  <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{nomeCurto(s.nome)}</span></td>
-                  <td>
-                    {publicado ? (
-                      <span><b style={{ color: "var(--text)" }}>{s.host}</b><span style={{ display: "block", fontSize: 11.5, color: "var(--faint)", fontFamily: "var(--mono)" }}>{s.url}</span></span>
-                    ) : (
-                      <Pill s="sem_dados" label="não publicado" />
-                    )}
-                  </td>
-                  <td>
-                    <span style={{ color: banco.cor, fontWeight: 600 }}>{banco.nome}</span>
-                    <span style={{ display: "block", fontSize: 11.5, color: "var(--faint)" }}>{banco.nota}</span>
-                  </td>
-                  <td className="r">
-                    <span className="num" style={{ fontWeight: 650, color: custo.valor === null ? "var(--warn)" : custo.valor === 0 ? "var(--good)" : "var(--text)" }}>
-                      {custo.valor === null ? "a confirmar" : custo.valor === 0 ? "grátis" : BRL(custo.valor)}
-                    </span>
-                    <span style={{ display: "block", fontSize: 11.5, color: "var(--faint)" }}>{custo.nota}</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Card title="Contas por sistema" hint="quantas empresas pagam/usam · de onde vem o número">
-        <div className="tablewrap">
-          <table>
-            <thead><tr><th>Sistema</th><th className="r">Contas</th><th>Fonte do número</th></tr></thead>
-            <tbody>
-              {contasConf.map((c) => (
-                <tr key={c.sis}>
-                  <td style={{ fontWeight: 600 }}>{c.sis}</td>
-                  <td className="r num" style={{ fontWeight: 650, color: c.n == null ? "var(--warn)" : "var(--text)" }}>{c.n == null ? "a mapear" : c.n}</td>
-                  <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{c.fonte}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 8, fontSize: 12, color: "var(--faint)" }}>
-          Se algum número não bater com a realidade, me diga o certo — eu aponto a tabela/nó correto.
         </div>
       </Card>
 
@@ -259,14 +144,6 @@ export default async function Dados() {
         </>
       )}
 
-      <Card title="Resumo do custo de infraestrutura" hint="quanto você gasta pra manter tudo no ar">
-        <div className="card-b">
-          <div className="cost-line"><span className="lbl">Custo de infra hoje (planos gratuitos)</span><span className="val num" style={{ color: "var(--good)" }}>{BRL(custoTotal)}{temRender ? " + Render" : ""}</span></div>
-          <p style={{ color: "var(--muted)", fontSize: 12.5, marginTop: 10 }}>
-            Sua infraestrutura está quase toda em <b>planos gratuitos</b> — Supabase Free, Vercel Hobby e Firebase Spark. Ou seja, hoje manter os sistemas no ar custa <b>≈ R$ 0</b>. O único que pode ter custo é o <b>Render</b> (onde roda o Juris). Conforme o uso crescer e os planos virarem pagos, os valores reais aparecem aqui automaticamente.
-          </p>
-        </div>
-      </Card>
     </>
   );
 }

@@ -6,7 +6,7 @@ export const NAV: NavGroup[] = [
     label: "Geral",
     items: [
       { href: "/", label: "Dashboard", icon: '<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>' },
-      { href: "/sistemas", label: "Infraestrutura", icon: '<rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><circle cx="7" cy="7" r=".6" fill="currentColor"/><circle cx="7" cy="17" r=".6" fill="currentColor"/>' },
+      { href: "/sistemas", label: "Sistemas", icon: '<rect x="3" y="4" width="18" height="6" rx="1"/><rect x="3" y="14" width="18" height="6" rx="1"/><circle cx="7" cy="7" r=".6" fill="currentColor"/><circle cx="7" cy="17" r=".6" fill="currentColor"/>' },
       { href: "/clientes", label: "Clientes", icon: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18.5 20a5.5 5.5 0 0 0-3-4.9"/>' },
       { href: "/planos", label: "Planos", icon: '<path d="M12 2l3 6 6 .5-4.5 4 1.5 6-6-3.5L6 18.5 7.5 12.5 3 8.5 9 8z"/>' },
       { href: "/consumos", label: "Consumos", icon: '<path d="M3 12h4l3 8 4-16 3 8h4"/>' },
@@ -34,11 +34,11 @@ export const NAV: NavGroup[] = [
 
 export const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/": { title: "Dashboard Master", sub: "Central de comando de todos os sistemas" },
-  "/sistemas": { title: "Infraestrutura", sub: "Onde cada sistema roda, saúde e erros" },
+  "/sistemas": { title: "Sistemas", sub: "Onde cada um roda, banco de dados, custo e saúde" },
   "/clientes": { title: "Clientes / Empresas", sub: "Tenants, consumo e status" },
   "/planos": { title: "Planos", sub: "Valores, nomes e limites por sistema" },
   "/consumos": { title: "Consumos", sub: "Uso real por empresa e por sistema" },
-  "/dados": { title: "Dados reais", sub: "Tabelas ao vivo lidas do Supabase dos sistemas" },
+  "/dados": { title: "Dados reais", sub: "Onde estão as tabelas de clientes e logins de cada sistema" },
   "/custos": { title: "Custos & Margem", sub: "Quanto custa manter tudo rodando" },
   "/pagamentos": { title: "Pagamentos & Cobrança", sub: "Mercado Pago, carência e inadimplência" },
   "/acessos": { title: "Acessos", sub: "Tentativas de login por empresa e usuário" },
