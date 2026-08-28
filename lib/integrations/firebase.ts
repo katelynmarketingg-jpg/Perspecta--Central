@@ -92,6 +92,15 @@ export async function findFirebaseNodes(): Promise<{ colecao: string; amostra: a
   return out;
 }
 
+// Tamanho aproximado dos dados no Realtime Database (MB), pelo JSON da árvore.
+// É estimativa (o tamanho real no Firebase inclui índices), mas serve de régua
+// para a barra de "quanto falta pro limite do plano grátis".
+export async function getFirebaseSizeMb(): Promise<number | null> {
+  const root = await readRoot();
+  if (root == null || typeof root !== "object") return null;
+  try { return Buffer.byteLength(JSON.stringify(root), "utf8") / (1024 * 1024); } catch { return null; }
+}
+
 // Conta as "contas" do Bistro (estabelecimentos/restaurantes que assinam).
 // Escolhe o nó de topo com cara de empresa/estabelecimento e conta os filhos.
 // Transparente: devolve também os candidatos para conferência.
