@@ -1,11 +1,13 @@
 import { Icon, Kpi } from "@/components/ui";
 import SimuladorPlanos from "@/components/SimuladorPlanos";
+import PlanosSalvos from "@/components/PlanosSalvos";
 import Cupons from "@/components/Cupons";
 import { getSistemas } from "@/lib/data";
 import { getResumoCusto } from "@/lib/gatilhos";
 import { getClientesUnificados, getContagemPorSistema } from "@/lib/clientes";
 import { listarCustosManuais } from "@/lib/custos-manuais";
 import { listarCupons } from "@/lib/cupons";
+import { listarPlanosCentral } from "@/lib/planos-central";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -22,13 +24,14 @@ const GB_USD: Record<string, number> = {
 };
 
 export default async function Planos() {
-  const [sistemas, resumo, empresas, cupons, custosManuais, contagem] = await Promise.all([
+  const [sistemas, resumo, empresas, cupons, custosManuais, contagem, planosSalvos] = await Promise.all([
     getSistemas(),
     getResumoCusto(),
     getClientesUnificados(),
     listarCupons(),
     listarCustosManuais(),
     getContagemPorSistema(),
+    listarPlanosCentral(),
   ]);
 
   // Custos fixos que você adiciona (ex.: Claude) são rateados por empresa:
@@ -62,6 +65,8 @@ export default async function Planos() {
       </div>
 
       <SimuladorPlanos sistemas={sisSimples} cupons={cupons} />
+
+      <PlanosSalvos planos={planosSalvos} sistemas={sisSimples} />
 
       <Cupons cupons={cupons} />
     </>
