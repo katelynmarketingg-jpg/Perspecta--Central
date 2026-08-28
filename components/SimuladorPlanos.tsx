@@ -1,16 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui";
 
 // Cada sistema tem um custo real por GB (do provedor onde roda):
 // Supabase ~US$0,125/GB, Render disco ~US$0,25/GB, Firebase ~US$5/GB.
 type Sis = { id: string; nome: string; cor: string; gbBrl: number; loginBrl: number; fixoBrl?: number };
 type Cupom = { id: string; codigo: string; tipo: "valor" | "percent"; valor: number };
-type Linha = {
-  id: number; sistema: string; cor: string; nome: string;
-  logins: number; gb: number; preco: number; custoHoje: number; custoPagando: number;
-};
 
 const BRL = (n: number) => (Number.isFinite(n) ? n : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const markup = (preco: number, custo: number) => (custo > 0 ? ((preco - custo) / custo) * 100 : null);
@@ -28,14 +25,17 @@ const inp: React.CSSProperties = {
 const lbl: React.CSSProperties = { fontSize: 12, color: "var(--muted)", fontWeight: 550, display: "block", marginBottom: 5 };
 
 export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: Sis[]; cupons?: Cupom[] }) {
+  const router = useRouter();
   const [sistemaId, setSistemaId] = useState(sistemas[0]?.id || "");
   const [nome, setNome] = useState("");
   const [logins, setLogins] = useState(1);
   const [gb, setGb] = useState(10);
+  const [produtos, setProdutos] = useState(0);
   const [preco, setPreco] = useState(0);
   const [custoExtra, setCustoExtra] = useState(0);
   const [cupomId, setCupomId] = useState("");
-  const [lista, setLista] = useState<Linha[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
 
   const sis = sistemas.find((s) => s.id === sistemaId) || sistemas[0];
   const cor = sis?.cor || "var(--accent)";
@@ -48,10 +48,23 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
   const custoHoje = custoExtra + fixoRateado;       // hoje: fixos rateados (infra grátis)
   const custoPagando = custoHoje + custoRecursos;   // + por uso quando passar do grátis
 
-  function adicionar() {
-    if (precoFinal <= 0 || !sis) return;
-    setLista((l) => [...l, { id: Date.now(), sistema: sis.nome, cor, nome: nome || "Plano", logins, gb, preco: precoFinal, custoHoje, custoPagando }]);
-    setNome("");
+  async function salvar() {
+    setMsg("");
+    if (!nome.trim()) { setMsg("Dê um nome ao plano."); return; }
+    if (precoFinal <= 0 || !sis) { setMsg("Informe um preço maior que zero."); return; }
+    setSaving(true);
+    try {
+      const r = await fetch("/api/planos", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sistemaId: sis.id, nome, logins, gb, produtos: produtos || null, preco: precoFinal }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error || "Não foi possível salvar."); setSaving(false); return; }
+      setMsg(`Plano "${nome}" salvo em ${sis.nome}.`);
+      setNome("");
+      router.refresh();
+    } catch { setMsg("Falha de conexão."); }
+    setSaving(false);
   }
 
   return (
@@ -70,6 +83,7 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
         </div>
 
         <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, alignItems: "end" }}>
+          <div><label style={lbl}>Produtos (limite, opcional)</label><input style={inp} type="number" min={0} value={produtos} onChange={(e) => setProdutos(Math.max(0, Number(e.target.value) || 0))} placeholder="ex.: 500 (Commerce)" /></div>
           <div><label style={lbl}>Custo extra fixo (R$, opcional)</label><input style={inp} type="number" min={0} value={custoExtra} onChange={(e) => setCustoExtra(Math.max(0, Number(e.target.value) || 0))} /></div>
           {cupons.length > 0 && (
             <div><label style={lbl}>Cupom</label>
@@ -97,39 +111,14 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
           Custo por GB real do provedor de cada sistema (Supabase, Render ou Firebase). <b>Markup</b> = lucro sobre o custo. Cálculo automático.
         </div>
 
-        <button type="button" onClick={adicionar} disabled={precoFinal <= 0}
-          style={{ marginTop: 14, background: precoFinal > 0 ? cor : "var(--panel-2)", color: precoFinal > 0 ? "#fff" : "var(--faint)", border: "none", borderRadius: 8, padding: "10px 16px", fontWeight: 600, fontSize: 14, cursor: precoFinal > 0 ? "pointer" : "not-allowed" }}>
-          + Adicionar à comparação
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+          <button type="button" onClick={salvar} disabled={saving || precoFinal <= 0}
+            style={{ background: precoFinal > 0 ? cor : "var(--panel-2)", color: precoFinal > 0 ? "#fff" : "var(--faint)", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 600, fontSize: 14, cursor: precoFinal > 0 ? "pointer" : "not-allowed" }}>
+            {saving ? "Salvando…" : "Salvar plano"}
+          </button>
+          {msg && <span style={{ fontSize: 13, color: msg.includes("salvo") ? "var(--good)" : "var(--crit)" }}>{msg}</span>}
+        </div>
       </Card>
-
-      {lista.length > 0 && (
-        <Card title="Comparação de planos" hint={`${lista.length} plano(s) simulado(s)`}>
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Sistema</th><th>Plano</th><th className="r">GB</th><th className="r">Preço</th><th className="r">Lucro hoje</th><th className="r">Lucro pagando</th><th className="r">Markup</th><th></th></tr></thead>
-              <tbody>
-                {lista.map((l) => {
-                  const lucH = l.preco - l.custoHoje; const lucP = l.preco - l.custoPagando;
-                  const cH = lucH >= 0 ? "var(--good)" : "var(--crit)"; const cP = lucP >= 0 ? "var(--good)" : "var(--crit)";
-                  return (
-                    <tr key={l.id}>
-                      <td><span className="sys-tag"><span className="sd" style={{ background: l.cor }} />{l.sistema}</span></td>
-                      <td>{l.nome}</td>
-                      <td className="r num">{l.gb}</td>
-                      <td className="r num">{BRL(l.preco)}</td>
-                      <td className="r num" style={{ color: cH, fontWeight: 650 }}>{BRL(lucH)}</td>
-                      <td className="r num" style={{ color: cP, fontWeight: 650 }}>{BRL(lucP)}</td>
-                      <td className="r num" style={{ color: cP, fontWeight: 650 }}>{fmtMk(markup(l.preco, l.custoPagando))}</td>
-                      <td><button type="button" onClick={() => setLista((x) => x.filter((y) => y.id !== l.id))} style={{ background: "none", border: "none", color: "var(--faint)", cursor: "pointer", fontSize: 16 }}>×</button></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
     </>
   );
 }
