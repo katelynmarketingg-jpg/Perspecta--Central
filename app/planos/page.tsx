@@ -1,4 +1,5 @@
 import { Card, Icon } from "@/components/ui";
+import SimuladorPlanos from "@/components/SimuladorPlanos";
 import { getSistemas, getPlanos } from "@/lib/data";
 import { BRL, fmtStorage, nomeCurto } from "@/lib/format";
 
@@ -7,12 +8,19 @@ export const dynamic = "force-dynamic";
 export default async function Planos() {
   const sistemas = await getSistemas();
   const planos = getPlanos();
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: nomeCurto(s.nome), cor: s.cor }));
 
   return (
     <>
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Edição de valores e nomes conecta ao Supabase (mutação persistida) na próxima fase. Por ora, exibe os planos de cada sistema.</span>
+        <span>Monte um plano: escolha o <b>sistema</b>, os <b>insumos</b> (logins, armazenamento) e o <b>preço de venda</b> — o Central calcula <b>custo, lucro e margem</b> na hora. Os cards abaixo são <b>modelos de referência</b>.</span>
+      </div>
+
+      <SimuladorPlanos sistemas={sisSimples} />
+
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 15, margin: 0 }}>Planos de referência (modelo)</h3>
       </div>
       {sistemas.map((s) => {
         const pls = planos.filter((p) => p.sis === s.id);
