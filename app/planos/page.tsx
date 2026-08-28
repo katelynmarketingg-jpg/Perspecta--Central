@@ -3,7 +3,8 @@ import SimuladorPlanos from "@/components/SimuladorPlanos";
 import Cupons from "@/components/Cupons";
 import { getSistemas } from "@/lib/data";
 import { getResumoCusto } from "@/lib/gatilhos";
-import { getClientesUnificados } from "@/lib/clientes";
+import { getClientesUnificados, getContagemPorSistema } from "@/lib/clientes";
+import { listarCustosManuais } from "@/lib/custos-manuais";
 import { listarCupons } from "@/lib/cupons";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, nomeCurto } from "@/lib/format";
@@ -21,16 +22,30 @@ const GB_USD: Record<string, number> = {
 };
 
 export default async function Planos() {
-  const [sistemas, resumo, empresas, cupons] = await Promise.all([
+  const [sistemas, resumo, empresas, cupons, custosManuais, contagem] = await Promise.all([
     getSistemas(),
     getResumoCusto(),
     getClientesUnificados(),
     listarCupons(),
+    listarCustosManuais(),
+    getContagemPorSistema(),
   ]);
+
+  // Custos fixos que você adiciona (ex.: Claude) são rateados por empresa:
+  // os de um sistema, pelas empresas daquele sistema; os "de todos", pelo total.
+  const totalEmp = empresas.length;
+  const manualGlobal = custosManuais.filter((c) => !c.sistemaId).reduce((a, c) => a + c.valorBrl, 0);
+  const fixoPorEmpresa = (id: string) => {
+    const doSis = custosManuais.filter((c) => c.sistemaId === id).reduce((a, c) => a + c.valorBrl, 0);
+    const nSis = Math.max(contagem[id] || 0, 1);
+    return doSis / nSis + (totalEmp > 0 ? manualGlobal / totalEmp : 0);
+  };
+
   const sisSimples = sistemas.map((s) => ({
     id: s.id, nome: nomeCurto(s.nome), cor: s.cor,
     gbBrl: (GB_USD[s.id] ?? 0.125) * CAMBIO_USD_BRL,
     loginBrl: 0,
+    fixoBrl: fixoPorEmpresa(s.id),
   }));
 
   return (
