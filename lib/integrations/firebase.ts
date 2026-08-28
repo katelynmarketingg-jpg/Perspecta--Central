@@ -112,6 +112,7 @@ export async function getContagemContasBistro(): Promise<{ n: number | null; no?
     .filter(([, v]) => v && typeof v === "object")
     .map(([no, v]) => ({ no, n: Object.keys(v as any).length }));
   const alvo = candidatos.find((c) => re.test(c.no));
+  console.log("[contas-debug] bistro nós de topo:", JSON.stringify(candidatos), "escolhido:", alvo?.no ?? "(nenhum)");
   return { n: alvo ? alvo.n : null, no: alvo?.no, candidatos };
 }
 
