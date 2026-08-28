@@ -180,6 +180,34 @@ async function _getContagemContas(ref: string): Promise<{
 }
 export const getContagemContas = unstable_cache(_getContagemContas, ["sb-contas-v1"], { revalidate: 60 });
 
+// Melhor tabela de "empresas/tenants" de um schema.
+async function melhorTabela(ref: string, schema: string): Promise<string | null> {
+  const cands = (await runSupabaseQuery(ref, `
+    select relname as tabela from pg_stat_user_tables
+    where schemaname = '${schema}'
+      and relname ~* 'tenant|empresa|conta|company|companies|organizat|loja|store|seller|estabelec|assinante|subscriber|account'
+    order by (relname ~* 'tenant|empresa|conta|company') desc, n_live_tup desc limit 1;`)) || [];
+  return cands[0]?.tabela ? String(cands[0].tabela) : null;
+}
+
+// Linhas das empresas (nome) de Commerce (schema commerce) e Juris (public).
+async function _getContasRows(ref: string): Promise<{ commerce: { id: any; nome: string }[]; juris: { id: any; nome: string }[] }> {
+  if (!supabaseConfigured() || !ref) return { commerce: [], juris: [] };
+  const [jt, ct] = await Promise.all([melhorTabela(ref, "public"), melhorTabela(ref, "commerce")]);
+  const rows = async (schema: string, tabela: string | null) => {
+    if (!tabela) return [];
+    const r = await runSupabaseQuery(ref, `select * from "${schema}"."${tabela}" limit 100;`);
+    if (!r) return [];
+    return r.map((row: any) => ({
+      id: row.id ?? null,
+      nome: String(row.name ?? row.nome ?? row.razao_social ?? row.fantasia ?? row.nome_fantasia ?? row.title ?? row.slug ?? row.email ?? row.id ?? "—"),
+    }));
+  };
+  const [juris, commerce] = await Promise.all([rows("public", jt), rows("commerce", ct)]);
+  return { commerce, juris };
+}
+export const getContasRows = unstable_cache(_getContasRows, ["sb-contas-rows-v1"], { revalidate: 60 });
+
 // Versões cacheadas (60s): evitam refazer as consultas pesadas a cada acesso.
 export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables"], { revalidate: 60 });
 export const supabaseStatus = unstable_cache(_supabaseStatus, ["sb-status"], { revalidate: 60 });
