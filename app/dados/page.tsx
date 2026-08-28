@@ -50,14 +50,14 @@ export default async function Dados() {
   // Conferência das "contas" (empresas que pagam) por sistema e de onde vem o número.
   const [contasSb, bistroContas, creatorRec] = await Promise.all([
     refSupabase && supabaseConfigured() ? getContagemContas(refSupabase) : Promise.resolve({ juris: null, commerce: null, candidatas: [] as any[], jurisTabela: undefined, commerceTabela: undefined }),
-    firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as any[], no: undefined }),
+    firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as string[] }),
     getCreatorReceita(),
   ]);
   const contasConf = [
     { sis: "Commerce", n: contasSb.commerce, fonte: contasSb.commerceTabela ? `Supabase · ${contasSb.commerceTabela}` : "tabela não encontrada" },
     { sis: "Juris", n: contasSb.juris, fonte: contasSb.jurisTabela ? `Supabase · ${contasSb.jurisTabela}` : "tabela não encontrada" },
     { sis: "Creator", n: creatorRec.receita?.total ?? null, fonte: "Creator API · escritórios" },
-    { sis: "Bistro", n: bistroContas.n, fonte: bistroContas.no ? `Firebase · nó "${bistroContas.no}"` : "nó não encontrado" },
+    { sis: "Bistro", n: bistroContas.n, fonte: bistroContas.candidatos.length ? `Firebase · estabelecimentos (${bistroContas.candidatos.join(", ")})` : "estabelecimentos (slug__) não encontrados" },
   ];
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
 
