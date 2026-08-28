@@ -1,8 +1,10 @@
 import { Icon, Kpi } from "@/components/ui";
 import SimuladorPlanos from "@/components/SimuladorPlanos";
+import Cupons from "@/components/Cupons";
 import { getSistemas } from "@/lib/data";
 import { getResumoCusto } from "@/lib/gatilhos";
 import { getClientesUnificados } from "@/lib/clientes";
+import { listarCupons } from "@/lib/cupons";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +12,11 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export default async function Planos() {
-  const [sistemas, resumo, empresas] = await Promise.all([
+  const [sistemas, resumo, empresas, cupons] = await Promise.all([
     getSistemas(),
     getResumoCusto(),
     getClientesUnificados(),
+    listarCupons(),
   ]);
   const sisSimples = sistemas.map((s) => ({ id: s.id, nome: nomeCurto(s.nome), cor: s.cor }));
   const n = Math.max(empresas.length, 1);
@@ -33,7 +36,9 @@ export default async function Planos() {
         <Kpi icon='<path d="M12 2v20M2 12h20"/>' k="Rateio previsto / empresa" v={BRL(rateioPagando)} />
       </div>
 
-      <SimuladorPlanos sistemas={sisSimples} rateioPagando={rateioPagando} />
+      <SimuladorPlanos sistemas={sisSimples} rateioPagando={rateioPagando} cupons={cupons} />
+
+      <Cupons cupons={cupons} />
     </>
   );
 }
