@@ -101,33 +101,49 @@ export async function getFirebaseSizeMb(): Promise<number | null> {
   try { return Buffer.byteLength(JSON.stringify(root), "utf8") / (1024 * 1024); } catch { return null; }
 }
 
-// Conta as "contas" do Bistro (estabelecimentos/restaurantes que assinam).
-// Escolhe o nó de topo com cara de empresa/estabelecimento e conta os filhos.
-// Transparente: devolve também os candidatos para conferência.
-export async function getContagemContasBistro(): Promise<{ n: number | null; no?: string; candidatos: { no: string; n: number }[] }> {
-  const root = await readRoot();
-  if (!root || typeof root !== "object") return { n: null, candidatos: [] };
-  const re = /restauran|estabelec|empresa|neg[óo]cio|negocio|loja|conta|company|tenant|com[ée]rcio|comercio|unidade/i;
-  const candidatos = Object.entries(root)
-    .filter(([, v]) => v && typeof v === "object")
-    .map(([no, v]) => ({ no, n: Object.keys(v as any).length }));
-  const alvo = candidatos.find((c) => re.test(c.no));
-  console.log("[contas-debug] bistro nós de topo:", JSON.stringify(candidatos), "escolhido:", alvo?.no ?? "(nenhum)");
-  return { n: alvo ? alvo.n : null, no: alvo?.no, candidatos };
+// Nome de estabelecimento a partir do slug (ex.: "alianca-pastelaria" → "Alianca Pastelaria").
+function bonito(slug: string): string {
+  return slug.replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim();
 }
 
-// Lê os itens dos nós que representam clientes do Bistro (até 50 por nó).
-export async function getFirebaseClientDocs(): Promise<{ colecao: string; rows: any[] }[] | null> {
+// Os estabelecimentos do Bistro são os nós "slug__<nome>" (onde vive o cadastro
+// e o valor do plano). O resto ("gestaoCompany_...", "gestaoMaster_...") é dado
+// interno do app, não é cliente. Varre topo e um nível abaixo, dedup por slug.
+export async function getBistroEstabelecimentos(): Promise<{ slug: string; nome: string; dados: Record<string, any> }[] | null> {
   const root = await readRoot();
   if (root === null) return null;
   if (!root || typeof root !== "object") return [];
-  const nomeCliente = /client|customer|empresa|cliente|tenant|company|conta|account|user|usuario|restaurante|estabelecimento|mesa|pedido/i;
-  let keys = Object.keys(root).filter((k) => nomeCliente.test(k) && root[k] && typeof root[k] === "object");
-  if (keys.length === 0) keys = Object.keys(root).filter((k) => root[k] && typeof root[k] === "object").slice(0, 10);
-  const out: { colecao: string; rows: any[] }[] = [];
-  for (const k of keys) {
-    const children = Object.entries(root[k]).slice(0, 50).map(([id, v]) => safeDoc(id, v));
-    if (children.length) out.push({ colecao: k, rows: children });
+  const achados = new Map<string, any>();
+  const add = (key: string, val: any) => {
+    if (/^slug__/.test(key)) {
+      const slug = key.replace(/^slug__/, "");
+      if (!achados.has(slug)) achados.set(slug, val);
+    }
+  };
+  for (const [k, v] of Object.entries(root)) {
+    add(k, v);
+    if (v && typeof v === "object") for (const [k2, v2] of Object.entries(v as any)) add(k2, v2);
   }
-  return out;
+  return [...achados.entries()]
+    .filter(([slug]) => !/teste|__test|demo/i.test(slug))
+    .map(([slug, val]) => ({
+      slug,
+      nome: bonito(slug),
+      dados: val && typeof val === "object" ? safeDoc(slug, val) : { id: slug, valor: val },
+    }));
+}
+
+// Conta as "contas" do Bistro = nº de estabelecimentos (nós slug__).
+export async function getContagemContasBistro(): Promise<{ n: number | null; candidatos: string[] }> {
+  const est = await getBistroEstabelecimentos();
+  if (est === null) return { n: null, candidatos: [] };
+  return { n: est.length, candidatos: est.map((e) => e.nome) };
+}
+
+// Clientes do Bistro para a lista unificada = os estabelecimentos (limpos).
+export async function getFirebaseClientDocs(): Promise<{ colecao: string; rows: any[] }[] | null> {
+  const est = await getBistroEstabelecimentos();
+  if (est === null) return null;
+  const rows = est.map((e) => ({ ...e.dados, nome: e.nome }));
+  return rows.length ? [{ colecao: "estabelecimentos", rows }] : [];
 }
