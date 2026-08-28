@@ -5,7 +5,7 @@ import { Card } from "@/components/ui";
 
 // Cada sistema tem um custo real por GB (do provedor onde roda):
 // Supabase ~US$0,125/GB, Render disco ~US$0,25/GB, Firebase ~US$5/GB.
-type Sis = { id: string; nome: string; cor: string; gbBrl: number; loginBrl: number };
+type Sis = { id: string; nome: string; cor: string; gbBrl: number; loginBrl: number; fixoBrl?: number };
 type Cupom = { id: string; codigo: string; tipo: "valor" | "percent"; valor: number };
 type Linha = {
   id: number; sistema: string; cor: string; nome: string;
@@ -44,8 +44,9 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
 
   // Custo dos recursos do plano no sistema escolhido (por GB e por login).
   const custoRecursos = useMemo(() => (sis ? gb * sis.gbBrl + logins * sis.loginBrl : 0), [sis, gb, logins]);
-  const custoHoje = custoExtra;                    // hoje a infra é grátis
-  const custoPagando = custoExtra + custoRecursos; // quando passar do grátis
+  const fixoRateado = sis?.fixoBrl || 0;           // custos fixos (ex.: Claude) rateados por empresa
+  const custoHoje = custoExtra + fixoRateado;       // hoje: fixos rateados (infra grátis)
+  const custoPagando = custoHoje + custoRecursos;   // + por uso quando passar do grátis
 
   function adicionar() {
     if (precoFinal <= 0 || !sis) return;
@@ -92,7 +93,8 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
           <Cenario titulo="Quando começar a pagar" custo={custoPagando} preco={precoFinal} destaque />
         </div>
         <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--faint)" }}>
-          Custo por GB real do provedor de cada sistema (Supabase, Render ou Firebase). <b>Markup</b> = lucro sobre o custo. O cálculo é automático conforme você preenche.
+          {fixoRateado > 0 && <>Inclui <b>{BRL(fixoRateado)}/empresa</b> de custos fixos rateados (ex.: Claude). </>}
+          Custo por GB real do provedor de cada sistema (Supabase, Render ou Firebase). <b>Markup</b> = lucro sobre o custo. Cálculo automático.
         </div>
 
         <button type="button" onClick={adicionar} disabled={precoFinal <= 0}
