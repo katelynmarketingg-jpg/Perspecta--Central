@@ -1,6 +1,9 @@
 import { Card, Kpi, Icon, Pill } from "@/components/ui";
+import CustosManuais from "@/components/CustosManuais";
 import { getResumoCusto } from "@/lib/gatilhos";
-import { BRL } from "@/lib/format";
+import { listarCustosManuais } from "@/lib/custos-manuais";
+import { getSistemas } from "@/lib/data";
+import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,8 +17,13 @@ const COR: Record<string, string> = {
 };
 
 export default async function Custos() {
-  const { atualBrl, previstoBrl, itens } = await getResumoCusto();
+  const [{ atualBrl, previstoBrl, itens, manualBrl }, sistemas, custosManuais] = await Promise.all([
+    getResumoCusto(),
+    getSistemas(),
+    listarCustosManuais(),
+  ]);
   const diff = previstoBrl - atualBrl;
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: nomeCurto(s.nome), cor: s.cor }));
 
   return (
     <>
@@ -48,6 +56,15 @@ export default async function Custos() {
                   <td className="r num" style={{ fontWeight: 650 }}>{g.custoPrevistoBrl > 0 ? BRL(g.custoPrevistoBrl) : "grátis"}</td>
                 </tr>
               ))}
+              {manualBrl > 0 && (
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Custos adicionais (seus)</td>
+                  <td><Pill s="ativo" label="pago" /></td>
+                  <td className="r num" style={{ fontWeight: 650 }}>{BRL(manualBrl)}</td>
+                  <td style={{ color: "var(--muted)", fontSize: 12.5 }}>cadastrados por você</td>
+                  <td className="r num" style={{ fontWeight: 650 }}>{BRL(manualBrl)}</td>
+                </tr>
+              )}
               <tr style={{ borderTop: "2px solid var(--border-strong)" }}>
                 <td style={{ fontWeight: 700 }}>Total</td>
                 <td />
@@ -62,6 +79,8 @@ export default async function Custos() {
           "Previsto" assume todos os pacotes pagos ativos (Supabase Pro, Vercel Pro, etc.). Câmbio e preços conferidos em {itens[0]?.conferido || "—"} — fontes nas linhas da aba <b>Consumos</b>. Ajuste o câmbio em lib/precos se precisar.
         </div>
       </Card>
+
+      <CustosManuais sistemas={sisSimples} custos={custosManuais} />
     </>
   );
 }
