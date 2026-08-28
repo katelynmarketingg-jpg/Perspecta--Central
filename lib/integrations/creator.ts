@@ -110,7 +110,6 @@ async function _creatorMe(): Promise<CreatorMe> {
     if (!res.ok) return { ok: false, superadmin: false, erro: `/api/auth/me deu HTTP ${res.status}` };
     const j: any = await res.json();
     const papel = j?.role || j?.user?.role;
-    console.log("[contas-debug] creator /me:", JSON.stringify(j));
     return { ok: true, superadmin: papel === "superadmin", papel, usuario: j?.username || j?.user?.username, escritorio: j?.org_name || j?.org?.name };
   } catch (e: any) {
     return { ok: false, superadmin: false, erro: e?.message || "rede" };
@@ -144,11 +143,9 @@ async function _getCreatorReceita(): Promise<{ receita: CreatorReceita | null; e
   if (!token) return { receita: null, erro };
   try {
     const res = await fetch(`${baseUrl()}/api/organizations/revenue`, { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
-    console.log("[contas-debug] creator /revenue HTTP:", res.status);
     if (res.status === 403) return { receita: null, erro: "a conta não é superadmin — só o master vê a receita." };
     if (!res.ok) return { receita: null, erro: `GET /revenue deu HTTP ${res.status}` };
     const j: any = await res.json();
-    console.log("[contas-debug] creator /revenue body:", JSON.stringify(j));
     return { receita: {
       mrr: Number(j?.mrr) || 0,
       previsto: Number(j?.previsto) || 0,
