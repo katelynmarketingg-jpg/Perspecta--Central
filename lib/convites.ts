@@ -22,6 +22,8 @@ export type Convite = {
   termosAceitosEm: string | null;
   trialAte: string | null;
   ativadoEm: string | null;
+  loginUsuario: string | null;
+  loginCriadoEm: string | null;
 };
 
 async function ref(): Promise<string | null> {
@@ -47,7 +49,9 @@ async function ensure(r: string) {
       termos_aceitos_em timestamptz,
       trial_ate timestamptz,
       ativado_em timestamptz
-    );`);
+    );
+    alter table central.convites add column if not exists login_usuario text;
+    alter table central.convites add column if not exists login_criado_em timestamptz;`);
 }
 
 function fromRow(x: any): Convite {
@@ -56,6 +60,7 @@ function fromRow(x: any): Convite {
     empresaNome: String(x.empresa_nome), email: String(x.email), whatsapp: x.whatsapp ?? null,
     trialDias: Number(x.trial_dias) || 14, status: x.status as StatusConvite,
     criadoEm: x.criado_em, termosAceitosEm: x.termos_aceitos_em, trialAte: x.trial_ate, ativadoEm: x.ativado_em,
+    loginUsuario: x.login_usuario ?? null, loginCriadoEm: x.login_criado_em ?? null,
   };
 }
 
@@ -126,6 +131,17 @@ export async function aceitarTermos(token: string): Promise<{ ok: boolean; erro?
     returning trial_ate;`);
   if (!res || !res[0]) return { ok: false, erro: "Não foi possível confirmar." };
   return { ok: true, trialAte: res[0].trial_ate, trialDias: c.trialDias };
+}
+
+// Registra que o login real já foi criado no sistema de destino (hoje só o
+// Creator tem API pra isso — ver /api/convites/criar-login).
+export async function registrarLoginCriado(token: string, usuario: string): Promise<{ ok: boolean }> {
+  const r = await ref();
+  if (!r) return { ok: false };
+  const tokSafe = token.replace(/[^a-z0-9]/gi, "");
+  const usuarioSafe = usuario.replace(/'/g, "''");
+  const res = await runSupabaseQuery(r, `update central.convites set login_usuario = '${usuarioSafe}', login_criado_em = now() where token = '${tokSafe}';`);
+  return { ok: res !== null };
 }
 
 export async function confirmarPagamento(token: string): Promise<{ ok: boolean; erro?: string }> {

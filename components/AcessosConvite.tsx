@@ -10,6 +10,7 @@ type Convite = {
   id: string; token: string; sistemaId: string; planoId: string; empresaNome: string; email: string;
   whatsapp: string | null; trialDias: number; status: "pendente" | "trial" | "aguardando_pagamento" | "ativo" | "cancelado";
   criadoEm: string; termosAceitosEm: string | null; trialAte: string | null; ativadoEm: string | null;
+  loginUsuario: string | null; loginCriadoEm: string | null;
 };
 
 const inp: React.CSSProperties = {
@@ -150,7 +151,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
         ) : (
           <div className="tablewrap">
             <table>
-              <thead><tr><th>Empresa</th><th>Sistema</th><th>Plano</th><th>Status</th><th className="r">Teste</th><th>Link</th><th></th></tr></thead>
+              <thead><tr><th>Empresa</th><th>Sistema</th><th>Plano</th><th>Status</th><th>Acesso</th><th className="r">Teste</th><th>Link</th><th></th></tr></thead>
               <tbody>
                 {convites.map((c) => {
                   const rest = c.status === "trial" ? diasRestantes(c.trialAte) : null;
@@ -162,6 +163,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
                       <td><span className="sys-tag"><span className="sd" style={{ background: corDe(c.sistemaId) }} />{nomeDe(c.sistemaId)}</span></td>
                       <td style={{ fontSize: 12.5 }}>{planoNome}</td>
                       <td><Pill s={statusPill[c.status]} label={statusLabel[c.status]} /></td>
+                      <td>{c.loginUsuario ? <span style={{ fontSize: 12, color: "var(--good)" }}>criado: {c.loginUsuario}</span> : <span style={{ fontSize: 12, color: "var(--faint)" }}>{c.sistemaId === "creator" ? "aguardando" : "manual"}</span>}</td>
                       <td className="r num">{rest != null ? `${rest}d` : "—"}</td>
                       <td>
                         {link ? (
