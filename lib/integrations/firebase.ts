@@ -92,6 +92,20 @@ export async function findFirebaseNodes(): Promise<{ colecao: string; amostra: a
   return out;
 }
 
+// Conta as "contas" do Bistro (estabelecimentos/restaurantes que assinam).
+// Escolhe o nó de topo com cara de empresa/estabelecimento e conta os filhos.
+// Transparente: devolve também os candidatos para conferência.
+export async function getContagemContasBistro(): Promise<{ n: number | null; no?: string; candidatos: { no: string; n: number }[] }> {
+  const root = await readRoot();
+  if (!root || typeof root !== "object") return { n: null, candidatos: [] };
+  const re = /restauran|estabelec|empresa|neg[óo]cio|negocio|loja|conta|company|tenant|com[ée]rcio|comercio|unidade/i;
+  const candidatos = Object.entries(root)
+    .filter(([, v]) => v && typeof v === "object")
+    .map(([no, v]) => ({ no, n: Object.keys(v as any).length }));
+  const alvo = candidatos.find((c) => re.test(c.no));
+  return { n: alvo ? alvo.n : null, no: alvo?.no, candidatos };
+}
+
 // Lê os itens dos nós que representam clientes do Bistro (até 50 por nó).
 export async function getFirebaseClientDocs(): Promise<{ colecao: string; rows: any[] }[] | null> {
   const root = await readRoot();

@@ -146,6 +146,40 @@ async function _getProjectDbSizeMb(ref: string): Promise<number | null> {
   }
 }
 
+// Conta as "contas" (empresas/tenants que assinam) por schema. O projeto
+// compartilhado separa Juris (schema public) de Commerce (schema commerce).
+// Transparente: devolve também as tabelas candidatas para conferência.
+async function contaExata(ref: string, schema: string, tabela: string): Promise<number | null> {
+  const r = await runSupabaseQuery(ref, `select count(*)::int as n from "${schema}"."${tabela}";`);
+  return r && r.length ? Number(r[0].n) || 0 : null;
+}
+
+async function _getContagemContas(ref: string): Promise<{
+  juris: number | null; commerce: number | null;
+  jurisTabela?: string; commerceTabela?: string;
+  candidatas: { schema: string; tabela: string; linhas: number }[];
+}> {
+  if (!supabaseConfigured() || !ref) return { juris: null, commerce: null, candidatas: [] };
+  const cands = (await runSupabaseQuery(ref, `
+    select schemaname as schema, relname as tabela, n_live_tup as linhas
+    from pg_stat_user_tables
+    where schemaname not in ('information_schema','pg_catalog','central','auth','storage','realtime','vault','extensions','graphql','graphql_public','pgbouncer','net','cron','supabase_functions','supabase_migrations')
+      and relname ~* 'tenant|empresa|conta|company|companies|organizat|loja|store|seller|estabelec|assinante|subscriber|account'
+    order by schemaname, n_live_tup desc;`)) || [];
+  const candidatas = cands.map((r: any) => ({ schema: String(r.schema), tabela: String(r.tabela), linhas: Number(r.linhas) || 0 }));
+  const score = (t: string) => (/tenant|empresa|conta|company/i.test(t) ? 2 : 1);
+  const melhor = (schema: string) =>
+    candidatas.filter((c) => c.schema === schema).sort((a, b) => score(b.tabela) - score(a.tabela) || b.linhas - a.linhas)[0];
+  const jr = melhor("public");
+  const cm = melhor("commerce");
+  const [juris, commerce] = await Promise.all([
+    jr ? contaExata(ref, jr.schema, jr.tabela) : Promise.resolve(null),
+    cm ? contaExata(ref, cm.schema, cm.tabela) : Promise.resolve(null),
+  ]);
+  return { juris, commerce, jurisTabela: jr?.tabela, commerceTabela: cm?.tabela, candidatas };
+}
+export const getContagemContas = unstable_cache(_getContagemContas, ["sb-contas-v1"], { revalidate: 60 });
+
 // Versões cacheadas (60s): evitam refazer as consultas pesadas a cada acesso.
 export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables"], { revalidate: 60 });
 export const supabaseStatus = unstable_cache(_supabaseStatus, ["sb-status"], { revalidate: 60 });
