@@ -3,22 +3,23 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui";
 
-type Sis = { id: string; nome: string; cor: string };
+// Cada sistema tem um custo real por GB (do provedor onde roda):
+// Supabase ~US$0,125/GB, Render disco ~US$0,25/GB, Firebase ~US$5/GB.
+type Sis = { id: string; nome: string; cor: string; gbBrl: number; loginBrl: number };
 type Cupom = { id: string; codigo: string; tipo: "valor" | "percent"; valor: number };
 type Linha = {
   id: number; sistema: string; cor: string; nome: string;
   logins: number; gb: number; preco: number; custoHoje: number; custoPagando: number;
 };
 
+const BRL = (n: number) => (Number.isFinite(n) ? n : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const markup = (preco: number, custo: number) => (custo > 0 ? ((preco - custo) / custo) * 100 : null);
+const fmtMk = (m: number | null) => (m == null ? "—" : `${m.toFixed(0)}%`);
 function descontar(preco: number, c?: Cupom | null): number {
   if (!c) return preco;
   const p = c.tipo === "percent" ? preco * (1 - c.valor / 100) : preco - c.valor;
   return Math.max(0, Math.round(p * 100) / 100);
 }
-
-const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const markup = (preco: number, custo: number) => (custo > 0 ? ((preco - custo) / custo) * 100 : null);
-const fmtMk = (m: number | null) => (m == null ? "—" : `${m.toFixed(0)}%`);
 
 const inp: React.CSSProperties = {
   background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 9,
@@ -26,82 +27,72 @@ const inp: React.CSSProperties = {
 };
 const lbl: React.CSSProperties = { fontSize: 12, color: "var(--muted)", fontWeight: 550, display: "block", marginBottom: 5 };
 
-export default function SimuladorPlanos({ sistemas, rateioPagando = 0, cupons = [] }: { sistemas: Sis[]; rateioPagando?: number; cupons?: Cupom[] }) {
-  const [sistema, setSistema] = useState(sistemas[0]?.nome || "");
+export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: Sis[]; cupons?: Cupom[] }) {
+  const [sistemaId, setSistemaId] = useState(sistemas[0]?.id || "");
   const [nome, setNome] = useState("");
   const [logins, setLogins] = useState(1);
-  const [gb, setGb] = useState(1);
+  const [gb, setGb] = useState(10);
   const [preco, setPreco] = useState(0);
+  const [custoExtra, setCustoExtra] = useState(0);
   const [cupomId, setCupomId] = useState("");
-  // Custos extras opcionais (rateio manual). Começam em 0.
-  const [custoBase, setCustoBase] = useState(0);
-  const [custoGb, setCustoGb] = useState(0);
-  const [custoLogin, setCustoLogin] = useState(0);
-  const [ajustar, setAjustar] = useState(false);
   const [lista, setLista] = useState<Linha[]>([]);
 
-  const custoManual = useMemo(() => custoBase + gb * custoGb + logins * custoLogin, [custoBase, gb, custoGb, logins, custoLogin]);
-  const custoHoje = custoManual;                    // infra hoje ~grátis
-  const custoPagando = custoManual + rateioPagando; // + rateio dos pacotes pagos
-  const cor = sistemas.find((s) => s.nome === sistema)?.cor || "var(--accent)";
+  const sis = sistemas.find((s) => s.id === sistemaId) || sistemas[0];
+  const cor = sis?.cor || "var(--accent)";
   const cupom = cupons.find((c) => c.id === cupomId) || null;
   const precoFinal = descontar(preco, cupom);
 
+  // Custo dos recursos do plano no sistema escolhido (por GB e por login).
+  const custoRecursos = useMemo(() => (sis ? gb * sis.gbBrl + logins * sis.loginBrl : 0), [sis, gb, logins]);
+  const custoHoje = custoExtra;                    // hoje a infra é grátis
+  const custoPagando = custoExtra + custoRecursos; // quando passar do grátis
+
   function adicionar() {
-    if (precoFinal <= 0) return;
-    setLista((l) => [...l, { id: Date.now(), sistema, cor, nome: nome || "Plano", logins, gb, preco: precoFinal, custoHoje, custoPagando }]);
+    if (precoFinal <= 0 || !sis) return;
+    setLista((l) => [...l, { id: Date.now(), sistema: sis.nome, cor, nome: nome || "Plano", logins, gb, preco: precoFinal, custoHoje, custoPagando }]);
     setNome("");
   }
 
   return (
     <>
-      <Card title="Simulador de plano" hint="custo hoje × quando pagar → lucro e markup">
+      <Card title="Simulador de plano" hint="preencha e o cálculo aparece na hora">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
           <div><label style={lbl}>Sistema</label>
-            <select style={inp} value={sistema} onChange={(e) => setSistema(e.target.value)}>
-              {sistemas.map((s) => <option key={s.id} value={s.nome}>{s.nome}</option>)}
+            <select style={inp} value={sistemaId} onChange={(e) => setSistemaId(e.target.value)}>
+              {sistemas.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
             </select>
           </div>
           <div><label style={lbl}>Nome do plano</label><input style={inp} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Essencial" /></div>
-          <div><label style={lbl}>Nº de logins</label><input style={inp} type="number" min={0} value={logins} onChange={(e) => setLogins(Math.max(0, Number(e.target.value)))} /></div>
-          <div><label style={lbl}>Armazenamento (GB)</label><input style={inp} type="number" min={0} step={0.5} value={gb} onChange={(e) => setGb(Math.max(0, Number(e.target.value)))} /></div>
-          <div><label style={lbl}>Preço de venda (R$/mês)</label><input style={{ ...inp, borderColor: cor }} type="number" min={0} value={preco} onChange={(e) => setPreco(Math.max(0, Number(e.target.value)))} placeholder="0,00" /></div>
+          <div><label style={lbl}>Nº de logins</label><input style={inp} type="number" min={0} value={logins} onChange={(e) => setLogins(Math.max(0, Number(e.target.value) || 0))} /></div>
+          <div><label style={lbl}>Armazenamento (GB)</label><input style={inp} type="number" min={0} step={1} value={gb} onChange={(e) => setGb(Math.max(0, Number(e.target.value) || 0))} /></div>
+          <div><label style={lbl}>Preço de venda (R$/mês)</label><input style={{ ...inp, borderColor: cor }} type="number" min={0} value={preco} onChange={(e) => setPreco(Math.max(0, Number(e.target.value) || 0))} placeholder="0" /></div>
         </div>
 
-        <button type="button" onClick={() => setAjustar((v) => !v)} style={{ background: "none", border: "none", color: "var(--muted)", fontSize: 12.5, cursor: "pointer", marginTop: 10, padding: 0 }}>
-          {ajustar ? "▾ ocultar custos extras" : "▸ acrescentar custos extras (opcional)"}
-        </button>
-        {ajustar && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginTop: 8 }}>
-            <div><label style={lbl}>Custo fixo / conta (R$)</label><input style={inp} type="number" min={0} step={0.5} value={custoBase} onChange={(e) => setCustoBase(Math.max(0, Number(e.target.value)))} /></div>
-            <div><label style={lbl}>Custo por GB (R$)</label><input style={inp} type="number" min={0} step={0.1} value={custoGb} onChange={(e) => setCustoGb(Math.max(0, Number(e.target.value)))} /></div>
-            <div><label style={lbl}>Custo por login (R$)</label><input style={inp} type="number" min={0} step={0.5} value={custoLogin} onChange={(e) => setCustoLogin(Math.max(0, Number(e.target.value)))} /></div>
-          </div>
-        )}
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, alignItems: "end" }}>
+          <div><label style={lbl}>Custo extra fixo (R$, opcional)</label><input style={inp} type="number" min={0} value={custoExtra} onChange={(e) => setCustoExtra(Math.max(0, Number(e.target.value) || 0))} /></div>
+          {cupons.length > 0 && (
+            <div><label style={lbl}>Cupom</label>
+              <select style={inp} value={cupomId} onChange={(e) => setCupomId(e.target.value)}>
+                <option value="">Sem cupom</option>
+                {cupons.map((c) => <option key={c.id} value={c.id}>{c.codigo} ({c.tipo === "percent" ? `−${c.valor}%` : `−${BRL(c.valor)}`})</option>)}
+              </select>
+            </div>
+          )}
+        </div>
 
-        {cupons.length > 0 && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 550 }}>Cupom:</span>
-            <select style={{ ...inp, width: "auto", minWidth: 180 }} value={cupomId} onChange={(e) => setCupomId(e.target.value)}>
-              <option value="">Sem cupom</option>
-              {cupons.map((c) => <option key={c.id} value={c.id}>{c.codigo} ({c.tipo === "percent" ? `−${c.valor}%` : `−${BRL(c.valor)}`})</option>)}
-            </select>
-          </div>
-        )}
-
-        {/* Preço em destaque */}
-        <div style={{ marginTop: 14, marginBottom: 4, fontSize: 12.5, color: "var(--muted)" }}>
+        <div style={{ marginTop: 14, marginBottom: 6, fontSize: 12.5, color: "var(--muted)" }}>
+          {sis && <>No <b style={{ color: "var(--text)" }}>{sis.nome}</b>, <b>{gb} GB</b> custam <b style={{ color: "var(--text)" }}>{BRL(gb * sis.gbBrl)}/mês</b> quando passar do grátis. </>}
           Vendendo por {cupom && precoFinal !== preco
-            ? <><s style={{ color: "var(--faint)" }}>{BRL(preco)}</s> <b style={{ color: "var(--accent)" }}>{BRL(precoFinal)}/mês</b> (com {cupom.codigo})</>
-            : <b style={{ color: "var(--text)" }}>{BRL(precoFinal)}/mês</b>}, o resultado nos dois cenários:
+            ? <><s style={{ color: "var(--faint)" }}>{BRL(preco)}</s> <b style={{ color: "var(--accent)" }}>{BRL(precoFinal)}</b></>
+            : <b style={{ color: "var(--text)" }}>{BRL(precoFinal)}</b>}/mês:
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 }}>
           <Cenario titulo="Hoje (infra grátis)" custo={custoHoje} preco={precoFinal} destaque={false} />
-          <Cenario titulo="Quando começar a pagar" custo={custoPagando} preco={precoFinal} destaque rateio={rateioPagando} />
+          <Cenario titulo="Quando começar a pagar" custo={custoPagando} preco={precoFinal} destaque />
         </div>
         <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--faint)" }}>
-          "Quando começar a pagar" soma o <b>rateio da infra prevista</b> ({BRL(rateioPagando)}/empresa) + custos extras que você adicionar. <b>Markup</b> = lucro sobre o custo (pode passar de 100%).
+          Custo por GB real do provedor de cada sistema (Supabase, Render ou Firebase). <b>Markup</b> = lucro sobre o custo. O cálculo é automático conforme você preenche.
         </div>
 
         <button type="button" onClick={adicionar} disabled={precoFinal <= 0}
@@ -114,7 +105,7 @@ export default function SimuladorPlanos({ sistemas, rateioPagando = 0, cupons = 
         <Card title="Comparação de planos" hint={`${lista.length} plano(s) simulado(s)`}>
           <div className="tablewrap">
             <table>
-              <thead><tr><th>Sistema</th><th>Plano</th><th className="r">Preço</th><th className="r">Lucro hoje</th><th className="r">Lucro pagando</th><th className="r">Markup pagando</th><th></th></tr></thead>
+              <thead><tr><th>Sistema</th><th>Plano</th><th className="r">GB</th><th className="r">Preço</th><th className="r">Lucro hoje</th><th className="r">Lucro pagando</th><th className="r">Markup</th><th></th></tr></thead>
               <tbody>
                 {lista.map((l) => {
                   const lucH = l.preco - l.custoHoje; const lucP = l.preco - l.custoPagando;
@@ -123,6 +114,7 @@ export default function SimuladorPlanos({ sistemas, rateioPagando = 0, cupons = 
                     <tr key={l.id}>
                       <td><span className="sys-tag"><span className="sd" style={{ background: l.cor }} />{l.sistema}</span></td>
                       <td>{l.nome}</td>
+                      <td className="r num">{l.gb}</td>
                       <td className="r num">{BRL(l.preco)}</td>
                       <td className="r num" style={{ color: cH, fontWeight: 650 }}>{BRL(lucH)}</td>
                       <td className="r num" style={{ color: cP, fontWeight: 650 }}>{BRL(lucP)}</td>
@@ -140,7 +132,7 @@ export default function SimuladorPlanos({ sistemas, rateioPagando = 0, cupons = 
   );
 }
 
-function Cenario({ titulo, custo, preco, destaque, rateio }: { titulo: string; custo: number; preco: number; destaque: boolean; rateio?: number }) {
+function Cenario({ titulo, custo, preco, destaque }: { titulo: string; custo: number; preco: number; destaque: boolean }) {
   const lucro = preco - custo;
   const mk = markup(preco, custo);
   const cor = lucro > 0 ? "var(--good)" : lucro < 0 ? "var(--crit)" : "var(--muted)";
