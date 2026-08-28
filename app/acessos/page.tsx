@@ -2,7 +2,7 @@ import { Icon, Kpi, Card, Pill } from "@/components/ui";
 import AcessosCreator from "@/components/AcessosCreator";
 import { getSistemas } from "@/lib/data";
 import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured } from "@/lib/integrations/creator";
-import { supabaseConfigured, getContasRows } from "@/lib/integrations/supabase";
+import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -32,8 +32,8 @@ export default async function Acessos() {
   const empresas: Emp[] = [];
   for (const o of orgsRes.orgs || []) empresas.push({ nome: o.name, sistema: nomeDe("creator"), cor: corDe("creator"), gerenciavel: true });
   for (const e of bistroEst || []) empresas.push({ nome: e.nome, sistema: nomeDe("bistro"), cor: corDe("bistro"), gerenciavel: false });
-  for (const c of contasRows.commerce || []) empresas.push({ nome: c.nome, sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
-  for (const j of contasRows.juris || []) empresas.push({ nome: j.nome, sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
+  for (const c of contasRows.commerce || []) empresas.push({ nome: nomeEmpresaRow(c), sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
+  for (const j of contasRows.juris || []) empresas.push({ nome: nomeEmpresaRow(j), sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
 
   const porSistema = new Map<string, number>();
   for (const e of empresas) porSistema.set(e.sistema, (porSistema.get(e.sistema) || 0) + 1);

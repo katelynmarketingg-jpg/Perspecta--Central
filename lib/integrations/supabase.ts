@@ -190,23 +190,25 @@ async function melhorTabela(ref: string, schema: string): Promise<string | null>
   return cands[0]?.tabela ? String(cands[0].tabela) : null;
 }
 
-// Linhas das empresas (nome) de Commerce (schema commerce) e Juris (public).
-async function _getContasRows(ref: string): Promise<{ commerce: { id: any; nome: string }[]; juris: { id: any; nome: string }[] }> {
+// Nome de exibição de uma empresa (tenant) a partir da linha do banco.
+export function nomeEmpresaRow(row: Record<string, any>): string {
+  return String(row.name ?? row.nome ?? row.razao_social ?? row.fantasia ?? row.nome_fantasia ?? row.title ?? row.slug ?? row.email ?? row.id ?? "—");
+}
+
+// Linhas COMPLETAS das empresas (tenants) de Commerce (schema commerce) e
+// Juris (public) — para listar/normalizar (nome, contato, valor).
+async function _getContasRows(ref: string): Promise<{ commerce: any[]; juris: any[] }> {
   if (!supabaseConfigured() || !ref) return { commerce: [], juris: [] };
   const [jt, ct] = await Promise.all([melhorTabela(ref, "public"), melhorTabela(ref, "commerce")]);
   const rows = async (schema: string, tabela: string | null) => {
     if (!tabela) return [];
     const r = await runSupabaseQuery(ref, `select * from "${schema}"."${tabela}" limit 100;`);
-    if (!r) return [];
-    return r.map((row: any) => ({
-      id: row.id ?? null,
-      nome: String(row.name ?? row.nome ?? row.razao_social ?? row.fantasia ?? row.nome_fantasia ?? row.title ?? row.slug ?? row.email ?? row.id ?? "—"),
-    }));
+    return r || [];
   };
   const [juris, commerce] = await Promise.all([rows("public", jt), rows("commerce", ct)]);
   return { commerce, juris };
 }
-export const getContasRows = unstable_cache(_getContasRows, ["sb-contas-rows-v1"], { revalidate: 60 });
+export const getContasRows = unstable_cache(_getContasRows, ["sb-contas-rows-v2"], { revalidate: 60 });
 
 // Versões cacheadas (60s): evitam refazer as consultas pesadas a cada acesso.
 export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables"], { revalidate: 60 });
