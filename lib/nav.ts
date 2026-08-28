@@ -24,6 +24,7 @@ export const NAV: NavGroup[] = [
     label: "Operação",
     items: [
       { href: "/acessos", label: "Acessos", icon: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="M17 11l2 2 4-4"/>' },
+      { href: "/termos", label: "Termos de uso", icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/>' },
       { href: "/seguranca", label: "Segurança", icon: '<path d="M12 2l8 3v6c0 5-3.5 9-8 11-4.5-2-8-6-8-11V5z"/>' },
       { href: "/suporte", label: "Suporte", icon: '<path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', badge: "suporte" },
       { href: "/relatorios", label: "Relatórios", icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>' },
@@ -42,6 +43,7 @@ export const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/custos": { title: "Custos & Margem", sub: "Quanto custa manter tudo rodando" },
   "/pagamentos": { title: "Pagamentos & Cobrança", sub: "Mercado Pago, carência e inadimplência" },
   "/acessos": { title: "Acessos", sub: "Tentativas de login por empresa e usuário" },
+  "/termos": { title: "Termos de uso", sub: "O termo que cada cliente aceita no primeiro acesso" },
   "/seguranca": { title: "Segurança & Alertas", sub: "Limites, inadimplência e bugs" },
   "/suporte": { title: "Suporte / Atendimento", sub: "Central de tickets" },
   "/relatorios": { title: "Relatórios", sub: "Exportação PDF e CSV" },

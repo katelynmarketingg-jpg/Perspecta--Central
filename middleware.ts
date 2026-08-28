@@ -12,9 +12,13 @@ export async function middleware(req: NextRequest) {
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/cadastro") ||
+    pathname.startsWith("/primeiro-acesso") ||
+    pathname.startsWith("/pagamento") ||
     pathname.startsWith("/api/login") ||
     pathname.startsWith("/api/logout") ||
-    pathname.startsWith("/api/cadastro")
+    pathname.startsWith("/api/cadastro") ||
+    pathname.startsWith("/api/convites/aceitar") ||
+    pathname.startsWith("/api/convites/pagamento")
   ) {
     return NextResponse.next();
   }

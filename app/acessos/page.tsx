@@ -1,6 +1,8 @@
 import { Icon, Kpi, Card, Pill } from "@/components/ui";
 import AcessosCreator from "@/components/AcessosCreator";
-import { getSistemas } from "@/lib/data";
+import AcessosConvite from "@/components/AcessosConvite";
+import { getSistemas, getPlanos } from "@/lib/data";
+import { listarConvites } from "@/lib/convites";
 import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured } from "@/lib/integrations/creator";
 import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
@@ -18,13 +20,16 @@ export default async function Acessos() {
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
 
-  const [me, orgsRes, recRes, contasRows, bistroEst] = await Promise.all([
+  const [me, orgsRes, recRes, contasRows, bistroEst, convites] = await Promise.all([
     creatorConfigured() ? creatorMe() : Promise.resolve({ ok: false, superadmin: false, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorReceita() : Promise.resolve({ receita: null }),
     refSb && supabaseConfigured() ? getContasRows(refSb) : Promise.resolve({ commerce: [], juris: [] }),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
+    listarConvites(),
   ]);
+  const planos = getPlanos();
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
   const cor = corDe("creator");
   const r = recRes.receita;
 
@@ -78,6 +83,11 @@ export default async function Acessos() {
           </div>
         )}
       </Card>
+
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 15, margin: 0 }}>Convites de primeiro acesso — todos os sistemas</h3>
+      </div>
+      <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
 
       <div className="sec-title" style={{ marginTop: 18 }}>
         <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>

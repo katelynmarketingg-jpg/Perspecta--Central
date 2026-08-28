@@ -5,6 +5,7 @@ import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supaba
 import { firebaseConfigured, firebaseStatus, getContagemContasBistro } from "@/lib/integrations/firebase";
 import { renderConfigured, getRenderCustos } from "@/lib/integrations/render";
 import { getGatilhos } from "@/lib/gatilhos";
+import { listarConvites } from "@/lib/convites";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, pct, nomeCurto } from "@/lib/format";
 
@@ -19,7 +20,7 @@ export default async function Dashboard() {
   const sistemas = await getSistemas();
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
 
-  const [creatorRec, contasSb, bistroContas, renderRes, gatilhos, creatorSt, fireSt] = await Promise.all([
+  const [creatorRec, contasSb, bistroContas, renderRes, gatilhos, creatorSt, fireSt, convites] = await Promise.all([
     getCreatorReceita(),
     refSb && supabaseConfigured() ? getContagemContas(refSb) : Promise.resolve({ juris: null, commerce: null } as any),
     firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null } as any),
@@ -27,6 +28,7 @@ export default async function Dashboard() {
     getGatilhos(),
     creatorStatus(),
     firebaseStatus(),
+    listarConvites(),
   ]);
 
   const contasPorSistema: Record<string, number | null> = {
@@ -46,6 +48,17 @@ export default async function Dashboard() {
   const alertas = gatilhos.filter((g) => g.estado === "perto" || g.estado === "passou");
   const conectados = [creatorSt.ok, fireSt.ok, supabaseConfigured(), renderConfigured()].filter(Boolean).length;
 
+  // Convites que precisam de você agora: teste acabou sem pagamento, ou teste
+  // acabando nos próximos 3 dias — pra você já ir avisando o cliente.
+  const diasRestantes = (iso: string | null) => (iso ? Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000) : null);
+  const aguardandoPagamento = convites.filter((c) => c.status === "aguardando_pagamento");
+  const trialAcabando = convites.filter((c) => {
+    if (c.status !== "trial") return false;
+    const d = diasRestantes(c.trialAte);
+    return d != null && d <= 3;
+  });
+  const precisaAtencao = [...aguardandoPagamento, ...trialAcabando];
+
   return (
     <>
       <div className="banner">
@@ -58,7 +71,34 @@ export default async function Dashboard() {
         <a href="/acessos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' k="Receita / mês" v={BRL(mrr)} /></a>
         <a href="/consumos" style={{ textDecoration: "none" }}><Kpi icon='<line x1="5" y1="12" x2="19" y2="12"/>' k="Custo de infra / mês" v={custoInfra > 0 ? BRL(custoInfra) : "grátis"} /></a>
         <a href="/custos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M3 3v18h18"/><path d="M7 12l3 3 7-8"/>' k="Lucro / mês" v={BRL(lucro)} /></a>
+        <a href="/acessos" style={{ textDecoration: "none" }}><Kpi icon='<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/>' k="Convites precisando de você" v={precisaAtencao.length} delta={precisaAtencao.length > 0 ? "resolver agora" : "tudo em dia"} dir={precisaAtencao.length > 0 ? "down" : "flat"} /></a>
       </div>
+
+      {precisaAtencao.length > 0 && (
+        <Card title="Precisa da sua atenção" hint="testes acabando ou já acabados sem pagamento" action={<a href="/acessos" className="selectlike" style={{ textDecoration: "none" }}>Resolver em Acessos</a>}>
+          <div className="card-b" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {aguardandoPagamento.map((c) => {
+              const s = sistemas.find((x) => x.id === c.sistemaId);
+              return (
+                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", marginTop: 5, flex: "none", background: "var(--crit)" }} />
+                  <div><div style={{ fontWeight: 600, fontSize: 13 }}>{c.empresaNome}</div><div style={{ fontSize: 12.5, color: "var(--muted)" }}>Teste do {nomeCurto(s?.nome || c.sistemaId)} acabou e ainda não tem pagamento — mande o link de pagamento.</div></div>
+                </div>
+              );
+            })}
+            {trialAcabando.map((c) => {
+              const s = sistemas.find((x) => x.id === c.sistemaId);
+              const d = diasRestantes(c.trialAte);
+              return (
+                <div key={c.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <span style={{ width: 9, height: 9, borderRadius: "50%", marginTop: 5, flex: "none", background: "var(--warn)" }} />
+                  <div><div style={{ fontWeight: 600, fontSize: 13 }}>{c.empresaNome}</div><div style={{ fontSize: 12.5, color: "var(--muted)" }}>Teste do {nomeCurto(s?.nome || c.sistemaId)} acaba em {d === 0 ? "hoje" : `${d} dia${d === 1 ? "" : "s"}`} — vale já avisar sobre o pagamento.</div></div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <div className="row2">
         <Card title="Onde está cada sistema" hint="hospedagem · status ao vivo · contas" action={<a href="/sistemas" className="selectlike" style={{ textDecoration: "none" }}>Ver tudo</a>}>
