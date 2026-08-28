@@ -22,9 +22,10 @@ export default function SimuladorPlanos({ sistemas }: { sistemas: Sis[] }) {
   const [logins, setLogins] = useState(1);
   const [gb, setGb] = useState(1);
   const [preco, setPreco] = useState(0);
-  // Taxas de custo (editáveis) — rateio de infra por conta.
-  const [custoBase, setCustoBase] = useState(5);
-  const [custoGb, setCustoGb] = useState(0.7);
+  // Taxas de custo (editáveis) — rateio de infra por conta. Começam em 0 porque
+  // hoje a infra é quase toda gratuita; ajuste com seu custo real se quiser.
+  const [custoBase, setCustoBase] = useState(0);
+  const [custoGb, setCustoGb] = useState(0);
   const [custoLogin, setCustoLogin] = useState(0);
   const [ajustar, setAjustar] = useState(false);
   const [lista, setLista] = useState<Linha[]>([]);
@@ -73,6 +74,9 @@ export default function SimuladorPlanos({ sistemas }: { sistemas: Sis[] }) {
           <Resultado k="Preço de venda" v={BRL(preco)} />
           <Resultado k="Lucro / mês" v={BRL(lucro)} cor={corLucro} />
           <Resultado k="Margem" v={(margem * 100).toFixed(0) + "%"} cor={corLucro} />
+        </div>
+        <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--faint)" }}>
+          O custo é uma <b>suposição sua</b> (taxas em "ajustar custos base"), não uma medição. Hoje a infra é quase toda gratuita, então começa em R$ 0.
         </div>
 
         <button type="button" onClick={adicionar} disabled={preco <= 0}
