@@ -1,130 +1,67 @@
-import { Card, Kpi, Pill, SourceTag, Icon } from "@/components/ui";
-import { getSistemas, getEmpresas, getCustos, receitaSistema, planById } from "@/lib/data";
-import { BRL, pct, nomeCurto, fmtStorage } from "@/lib/format";
-import { infraCusto } from "@/lib/precos";
+import { Card, Kpi, Icon, Pill } from "@/components/ui";
+import { getResumoCusto } from "@/lib/gatilhos";
+import { BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const ROTULO: Record<string, string> = {
+  ok: "grátis", perto: "quase no limite", passou: "já paga", pago: "pago", medir: "grátis",
+};
+const COR: Record<string, string> = {
+  ok: "var(--good)", perto: "var(--warn)", passou: "var(--crit)", pago: "var(--accent)", medir: "var(--good)",
+};
 
 export default async function Custos() {
-  const sistemas = await getSistemas();
-  const empresas = getEmpresas();
-  const custos = getCustos();
-
-  const custoDe = (sid: string | null) => custos.filter((c) => c.sis === sid).reduce((s, c) => s + c.valor, 0);
-  const totalCusto = custos.reduce((s, c) => s + c.valor, 0);
-  const totalReceita = sistemas.reduce((s, x) => s + receitaSistema(x.id), 0);
-  const geral = custoDe(null);
+  const { atualBrl, previstoBrl, itens } = await getResumoCusto();
+  const diff = previstoBrl - atualBrl;
 
   return (
     <>
-      <div className="grid-kpi">
-        <Kpi icon='<path d="M3 3v18h18"/>' k="Receita total" v={BRL(totalReceita)} />
-        <Kpi icon='<line x1="5" y1="12" x2="19" y2="12"/>' k="Custo total" v={BRL(totalCusto)} />
-        <Kpi icon='<path d="M7 12l3 3 7-8"/>' k="Lucro" v={BRL(totalReceita - totalCusto)} />
-        <Kpi icon='<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' k="Margem geral" v={pct(totalReceita > 0 ? (totalReceita - totalCusto) / totalReceita : 0)} />
-      </div>
-
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Custo <b>ao vivo</b> vem do Supabase quando conectado. <b>Render</b> e serviços sem integração ficam como <b>estimativa manual</b> (etiqueta ao lado). Você pode cadastrar novos custos manualmente.</span>
+        <span>
+          <b>Custo hoje</b> (o que você paga agora) e <b>custo previsto</b> (quando cada serviço passar do plano grátis e entrar no pacote pago). Assim você sabe de antemão para quanto a conta vai quando começar a pagar.
+        </span>
       </div>
 
-      <Card title="Custo por sistema — margem por empresa e por login"
-        hint="rateio: custo do sistema ÷ empresas ativas e ÷ logins ativos"
-        action={<button className="btn sm"><Icon path='<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' size={14} />Novo custo</button>}>
+      <div className="grid-kpi">
+        <Kpi icon='<line x1="5" y1="12" x2="19" y2="12"/>' k="Custo de infra hoje" v={atualBrl > 0 ? BRL(atualBrl) : "grátis"} />
+        <Kpi icon='<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>' k="Custo previsto (pacotes pagos)" v={BRL(previstoBrl)} />
+        <Kpi icon='<path d="M12 5v14M5 12h14"/>' k="Aumento quando pagar tudo" v={BRL(diff)} />
+      </div>
+
+      <Card title="Custo por serviço — hoje × previsto" hint="quando o grátis acabar, entra o pacote pago">
         <div className="tablewrap">
           <table>
-            <thead><tr><th>Sistema</th><th className="r">Receita</th><th className="r">Custo</th><th className="r">Margem</th><th className="r">Custo / empresa</th><th className="r">Custo / login</th></tr></thead>
+            <thead>
+              <tr><th>Serviço</th><th>Situação</th><th className="r">Custo hoje</th><th>Pacote pago</th><th className="r">Custo previsto</th></tr>
+            </thead>
             <tbody>
-              {sistemas.map((s) => {
-                const r = receitaSistema(s.id), c = custoDe(s.id), m = r > 0 ? (r - c) / r : 0;
-                const emps = empresas.filter((e) => e.sis === s.id && e.status !== "canc");
-                const logins = emps.reduce((a, e) => a + e.adeptos, 0) || 1;
-                return (
-                  <tr key={s.id}>
-                    <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{s.nome}</span></td>
-                    <td className="r num" style={{ color: "var(--good)" }}>{BRL(r)}</td>
-                    <td className="r num">{BRL(c)}</td>
-                    <td className="r num" style={{ color: m < 0 ? "var(--crit)" : "var(--accent)", fontWeight: 650 }}>{pct(m)}</td>
-                    <td className="r num">{BRL(c / (emps.length || 1))}</td>
-                    <td className="r num">{BRL(c / logins)}</td>
-                  </tr>
-                );
-              })}
+              {itens.map((g, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 600 }}>{g.servico}</td>
+                  <td><Pill s={g.estado === "passou" || g.estado === "pago" ? "ativo" : g.estado === "perto" ? "warn" : "muted"} label={ROTULO[g.estado]} /></td>
+                  <td className="r num" style={{ color: g.custoAtualBrl > 0 ? "var(--text)" : "var(--good)", fontWeight: 650 }}>{g.custoAtualBrl > 0 ? BRL(g.custoAtualBrl) : "grátis"}</td>
+                  <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{g.pacote}</td>
+                  <td className="r num" style={{ fontWeight: 650 }}>{g.custoPrevistoBrl > 0 ? BRL(g.custoPrevistoBrl) : "grátis"}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: "2px solid var(--border-strong)" }}>
+                <td style={{ fontWeight: 700 }}>Total</td>
+                <td />
+                <td className="r num" style={{ fontWeight: 700 }}>{atualBrl > 0 ? BRL(atualBrl) : "grátis"}</td>
+                <td />
+                <td className="r num" style={{ fontWeight: 700, color: "var(--accent)" }}>{BRL(previstoBrl)}</td>
+              </tr>
             </tbody>
           </table>
         </div>
-      </Card>
-
-      <Card title="Custo por projeto e por MB — uso × preço"
-        hint="quanto custa cada projeto e quanto custa o espaço que usamos"
-        action={<span className="hint">uso ao vivo destrava com Supabase/Vercel</span>}>
-        <div className="banner" style={{ margin: "0 0 4px" }}>
-          <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-          <span>Vercel e Supabase cobram <b>por conta</b>, não por projeto — então custo por projeto é <b>rateio do custo atribuído ÷ uso</b>. Render cobra <b>por serviço</b> (tier fixo). Hoje o uso é estimativa; vira <b>ao vivo</b> quando as chaves forem conectadas.</span>
-        </div>
-        <div className="tablewrap">
-          <table>
-            <thead><tr><th>Projeto</th><th>Host</th><th className="r">Custo / mês</th><th className="r">Uso</th><th className="r">Utilização</th><th className="r">Custo / GB</th><th className="r">Custo / MB</th><th>Origem</th></tr></thead>
-            <tbody>
-              {sistemas.map((s) => {
-                const emps = empresas.filter((e) => e.sis === s.id && e.status !== "canc");
-                const limiteMb = emps.reduce((a, e) => a + (planById(e.plano)?.storage || 0), 0);
-                // Storage ao vivo do Supabase quando disponível; senão soma estimada das empresas.
-                const aoVivo = s.storageLiveMb != null;
-                const usoMb = aoVivo ? (s.storageLiveMb as number) : emps.reduce((a, e) => a + e.usoStorage, 0);
-                const info = infraCusto({ baseBrl: custoDe(s.id), usoMb, limiteMb, source: aoVivo ? "live" : "manual" });
-                const u = info.utilizacao;
-                if (info.baseBrl === 0 && usoMb === 0) return null;
-                return (
-                  <tr key={s.id}>
-                    <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{nomeCurto(s.nome)}</span></td>
-                    <td style={{ color: "var(--muted)" }}>{s.host}</td>
-                    <td className="r num">{BRL(info.baseBrl)}</td>
-                    <td className="r num">{fmtStorage(info.usoMb)}{limiteMb ? " / " + fmtStorage(limiteMb) : ""}</td>
-                    <td className="r num" style={{ color: u >= 0.9 ? "var(--crit)" : u >= 0.75 ? "var(--warn)" : "var(--muted)" }}>{limiteMb ? pct(u) : "—"}</td>
-                    <td className="r num">{info.custoPorGb > 0 ? BRL(info.custoPorGb) : "—"}</td>
-                    <td className="r num" style={{ color: "var(--accent)", fontWeight: 600 }}>{info.custoPorMb > 0 ? "R$ " + info.custoPorMb.toFixed(3).replace(".", ",") : "—"}</td>
-                    <td><SourceTag source={info.source} /></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div style={{ marginTop: 10, fontSize: 12, color: "var(--faint)" }}>
+          "Previsto" assume todos os pacotes pagos ativos (Supabase Pro, Vercel Pro, etc.). Câmbio e preços conferidos em {itens[0]?.conferido || "—"} — fontes nas linhas da aba <b>Consumos</b>. Ajuste o câmbio em lib/precos se precisar.
         </div>
       </Card>
-
-      <div className="row2">
-        <Card title="Lançamentos de custo" hint="fonte e origem do dado">
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Serviço</th><th>Sistema</th><th>Fonte</th><th>Origem</th><th className="r">Valor / mês</th></tr></thead>
-              <tbody>
-                {custos.map((c, i) => {
-                  const sys = c.sis ? sistemas.find((s) => s.id === c.sis) : null;
-                  return (
-                    <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{c.nome}</td>
-                      <td>{sys ? <span className="sys-tag"><span className="sd" style={{ background: sys.cor }} />{nomeCurto(sys.nome)}</span> : <span style={{ color: "var(--faint)" }}>Geral</span>}</td>
-                      <td style={{ color: "var(--muted)" }}>{c.fonte}</td>
-                      <td><SourceTag source={c.source} /></td>
-                      <td className="r num">{BRL(c.valor)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-        <Card title="Custos gerais (não atribuídos)" hint="IA, e-mail e afins">
-          <div className="card-b">
-            <div className="cost-line"><span className="lbl">Total geral</span><span className="val num">{BRL(geral)}</span></div>
-            <p style={{ color: "var(--muted)", fontSize: 12.5, marginTop: 10 }}>
-              Custos que não pertencem a um sistema específico (ex.: Anthropic/Claude, Resend) entram aqui e são somados ao custo total, mas não afetam a margem individual de cada sistema.
-            </p>
-          </div>
-        </Card>
-      </div>
     </>
   );
 }
