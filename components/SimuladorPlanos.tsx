@@ -16,19 +16,25 @@ const inp: React.CSSProperties = {
 };
 const lbl: React.CSSProperties = { fontSize: 12, color: "var(--muted)", fontWeight: 550, display: "block", marginBottom: 5 };
 
-export default function SimuladorPlanos({ sistemas }: { sistemas: Sis[] }) {
+export default function SimuladorPlanos({ sistemas, rateioPagando = 0 }: { sistemas: Sis[]; rateioPagando?: number }) {
   const [sistema, setSistema] = useState(sistemas[0]?.nome || "");
   const [nome, setNome] = useState("");
   const [logins, setLogins] = useState(1);
   const [gb, setGb] = useState(1);
   const [preco, setPreco] = useState(0);
-  // Taxas de custo (editáveis) — rateio de infra por conta. Começam em 0 porque
-  // hoje a infra é quase toda gratuita; ajuste com seu custo real se quiser.
+  // Cenário: "hoje" (infra grátis, custo ~0) ou "pagando" (rateio dos pacotes pagos).
+  const [cenario, setCenario] = useState<"hoje" | "pagando">("hoje");
+  // Taxas de custo (editáveis) — rateio de infra por conta.
   const [custoBase, setCustoBase] = useState(0);
   const [custoGb, setCustoGb] = useState(0);
   const [custoLogin, setCustoLogin] = useState(0);
   const [ajustar, setAjustar] = useState(false);
   const [lista, setLista] = useState<Linha[]>([]);
+
+  function trocarCenario(c: "hoje" | "pagando") {
+    setCenario(c);
+    setCustoBase(c === "pagando" ? Math.round(rateioPagando * 100) / 100 : 0);
+  }
 
   const custo = useMemo(() => custoBase + gb * custoGb + logins * custoLogin, [custoBase, gb, custoGb, logins, custoLogin]);
   const lucro = preco - custo;
@@ -68,8 +74,24 @@ export default function SimuladorPlanos({ sistemas }: { sistemas: Sis[] }) {
           </div>
         )}
 
+        {/* Cenário de custo */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 550 }}>Cenário de custo:</span>
+          {(["hoje", "pagando"] as const).map((c) => (
+            <button key={c} type="button" onClick={() => trocarCenario(c)}
+              style={{ padding: "6px 12px", borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+                border: `1px solid ${cenario === c ? cor : "var(--border)"}`,
+                background: cenario === c ? cor : "var(--panel-2)", color: cenario === c ? "#fff" : "var(--text)" }}>
+              {c === "hoje" ? "Hoje (grátis)" : "Se pagássemos os pacotes"}
+            </button>
+          ))}
+          {cenario === "pagando" && rateioPagando > 0 && (
+            <span style={{ fontSize: 11.5, color: "var(--faint)" }}>≈ {BRL(rateioPagando)}/empresa (rateio da infra prevista)</span>
+          )}
+        </div>
+
         {/* Resultado */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12, marginTop: 12 }}>
           <Resultado k="Custo estimado" v={BRL(custo)} />
           <Resultado k="Preço de venda" v={BRL(preco)} />
           <Resultado k="Lucro / mês" v={BRL(lucro)} cor={corLucro} />
