@@ -3,6 +3,7 @@ import { getSistemas } from "@/lib/data";
 import { supabaseConfigured, listSupabaseTables, findKeyTables, supabaseStatus } from "@/lib/integrations/supabase";
 import { firebaseConfigured, findFirebaseNodes, firebaseStatus } from "@/lib/integrations/firebase";
 import { creatorStatus } from "@/lib/integrations/creator";
+import { renderConfigured, renderStatus, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
 import { nomeCurto, BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +17,16 @@ function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota
   return { nome: "sem banco próprio", nota: "ainda usa dados de exemplo", cor: "var(--faint)" };
 }
 
-// Custo real de infra hoje. Tudo em plano gratuito, exceto Render (a confirmar o tier).
-function custoInfra(host: string, publicado: boolean): { valor: number | null; nota: string } {
+// Custo real de infra hoje. Vercel/Firebase no grátis; Render lido ao vivo pela API.
+function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): { valor: number | null; nota: string } {
   if (!publicado) return { valor: 0, nota: "não publicado" };
   if (host === "Vercel") return { valor: 0, nota: "Vercel Hobby · grátis" };
   if (host === "Firebase") return { valor: 0, nota: "Firebase Spark · grátis" };
-  if (host === "Render") return { valor: null, nota: "Render · confirmar tier" };
+  if (host === "Render") {
+    if (rc && rc.totalUsd != null) return { valor: rc.totalUsd * BRL_POR_USD, nota: `US$ ${rc.totalUsd.toFixed(2)}/mês · ${rc.detalhe}` };
+    if (rc) return { valor: null, nota: `Render · ${rc.detalhe}` };
+    return { valor: null, nota: "Render · confirmar tier" };
+  }
   return { valor: 0, nota: "—" };
 }
 
@@ -39,7 +44,18 @@ export default async function Dados() {
     firebaseStatus(),
   ]);
   const creatorSt = await creatorStatus();
+  const renderSt = await renderStatus();
+  const renderCustos = renderConfigured() ? (await getRenderCustos()).custos : null;
   const mascarar = (col: string) => /senha|password|token|secret|hash|salt/i.test(col);
+
+  // Acha o custo Render de um serviço pelo host (ex.: saas-agency-k9ft.onrender.com).
+  function renderCustoDoSistema(url: string): RenderCusto | null {
+    if (!renderCustos) return null;
+    const host = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "").toLowerCase();
+    return renderCustos.find((c) => c.servico.host?.toLowerCase() === host)
+      || renderCustos.find((c) => c.servico.nome && host.includes(c.servico.nome.toLowerCase()))
+      || null;
+  }
 
   const linhas = sistemas.map((s) => {
     const publicado = !s.url.includes("não publicado");
@@ -47,7 +63,7 @@ export default async function Dados() {
       s,
       publicado,
       banco: bancoDe(s.host, s.supabaseRef),
-      custo: custoInfra(s.host, publicado),
+      custo: custoInfra(s.host, publicado, s.host === "Render" ? renderCustoDoSistema(s.url) : null),
     };
   });
   const custoTotal = linhas.reduce((a, l) => a + (l.custo.valor ?? 0), 0);
@@ -82,6 +98,12 @@ export default async function Dados() {
                 <td>{!creatorSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : creatorSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
                 <td className="r num">{creatorSt.ok ? `${creatorSt.clientes} clientes` : "—"}</td>
                 <td style={{ color: creatorSt.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>{!creatorSt.configurado ? "configure CREATOR_API_URL / CREATOR_USER / CREATOR_PASS" : creatorSt.ok ? "lendo a API do Creator ao vivo" : (creatorSt.erro || "falha ao conectar")}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 600 }}>Render (Creator + Juris)</td>
+                <td>{!renderSt.configurado ? <Pill s="sem_dados" label="sem chave" /> : renderSt.ok ? <Pill s="ativo" label="conectado" /> : <Pill s="inad" label="erro" />}</td>
+                <td className="r num">{renderSt.ok ? `${renderSt.servicos} serviços` : "—"}</td>
+                <td style={{ color: renderSt.ok ? "var(--muted)" : renderSt.configurado ? "var(--crit)" : "var(--muted)", fontSize: 12.5 }}>{!renderSt.configurado ? "configure RENDER_API_KEY para ver o custo real" : renderSt.ok ? "lendo os planos e o custo ao vivo" : (renderSt.erro || "falha ao conectar")}</td>
               </tr>
             </tbody>
           </table>
