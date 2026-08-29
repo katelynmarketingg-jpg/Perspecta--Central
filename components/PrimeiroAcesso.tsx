@@ -60,7 +60,7 @@ export default function PrimeiroAcesso({ token, convite, sistema, plano, termo }
   plano: { nome: string; valor: number } | null;
   termo: string;
 }) {
-  const criaLoginAutomatico = convite.sistemaId === "creator";
+  const criaLoginAutomatico = convite.sistemaId === "creator" || convite.sistemaId === "juris";
   const [passo, setPasso] = useState<"termos" | "login" | "pronto">(
     convite.status !== "pendente" ? (criaLoginAutomatico && !convite.loginCriadoEm ? "login" : "pronto") : "termos"
   );
