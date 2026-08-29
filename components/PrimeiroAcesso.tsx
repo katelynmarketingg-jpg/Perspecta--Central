@@ -60,7 +60,8 @@ export default function PrimeiroAcesso({ token, convite, sistema, plano, termo }
   plano: { nome: string; valor: number } | null;
   termo: string;
 }) {
-  const criaLoginAutomatico = convite.sistemaId === "creator" || convite.sistemaId === "juris";
+  const criaLoginAutomatico = ["creator", "juris", "commerce"].includes(convite.sistemaId);
+  const loginPorEmail = convite.sistemaId === "commerce";
   const [passo, setPasso] = useState<"termos" | "login" | "pronto">(
     convite.status !== "pendente" ? (criaLoginAutomatico && !convite.loginCriadoEm ? "login" : "pronto") : "termos"
   );
@@ -95,7 +96,7 @@ export default function PrimeiroAcesso({ token, convite, sistema, plano, termo }
 
   async function criarLogin() {
     setErr("");
-    if (!usuario.trim() || !senha) { setErr("Escolha um usuário e uma senha."); return; }
+    if (!senha || (!loginPorEmail && !usuario.trim())) { setErr(loginPorEmail ? "Escolha uma senha." : "Escolha um usuário e uma senha."); return; }
     setLoading(true);
     try {
       const r = await fetch("/api/convites/criar-login", {
@@ -157,10 +158,14 @@ export default function PrimeiroAcesso({ token, convite, sistema, plano, termo }
         {passo === "login" && (
           <>
             <div style={{ fontSize: 13, color: "var(--good)", background: "var(--good-soft)", border: "1px solid color-mix(in srgb, var(--good) 30%, transparent)", borderRadius: 12, padding: "12px 14px" }}>
-              ✓ Termos aceitos, teste grátis já está contando. Agora escolha seu usuário e senha pra entrar no {nomeSis}.
+              ✓ Termos aceitos, teste grátis já está contando. {loginPorEmail ? `Agora só falta escolher a senha pra entrar no ${nomeSis} com o e-mail ${convite.email}.` : `Agora escolha seu usuário e senha pra entrar no ${nomeSis}.`}
             </div>
-            <div><label style={lbl}>Seu nome</label><input style={inp} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como te chamam" /></div>
-            <div><label style={lbl}>Usuário</label><input style={inp} value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="ex.: joao (não é e-mail)" /></div>
+            {!loginPorEmail && (
+              <>
+                <div><label style={lbl}>Seu nome</label><input style={inp} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Como te chamam" /></div>
+                <div><label style={lbl}>Usuário</label><input style={inp} value={usuario} onChange={(e) => setUsuario(e.target.value)} placeholder="ex.: joao (não é e-mail)" /></div>
+              </>
+            )}
             <div><label style={lbl}>Senha</label><input style={inp} type="password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="crie uma senha" /></div>
 
             {err && <div style={{ color: "var(--crit)", fontSize: 12.5 }}>{err}</div>}
