@@ -28,26 +28,46 @@ export async function getProjectHealth(ref: string): Promise<{
   }
 }
 
-// Roda uma query somente-leitura no banco do projeto via Management API e
-// devolve as linhas (array de objetos). Retorna null se sem chave/erro.
+// Roda uma query no banco do projeto via Management API e devolve as linhas
+// (array de objetos). Retorna null se sem chave/erro — mas SEMPRE loga o
+// motivo real no runtime log da Vercel, pra dar pra diagnosticar depois.
 export async function runSupabaseQuery(ref: string, sql: string): Promise<any[] | null> {
   if (!supabaseConfigured() || !ref) return null;
-  try {
-    const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
+  const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
+  const tentativa = async (): Promise<{ ok: boolean; data?: any; status?: number; corpo?: string }> => {
     const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ query: sql }),
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    const data: any = await res.json();
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.result)) return data.result;
-    return null;
-  } catch {
-    return null;
+    if (!res.ok) {
+      const corpo = await res.text().catch(() => "");
+      return { ok: false, status: res.status, corpo: corpo.slice(0, 500) };
+    }
+    return { ok: true, data: await res.json() };
+  };
+  // Uma retentativa: a Management API às vezes engasga em cold start / rate limit.
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await tentativa();
+      if (r.ok) {
+        const data = r.data;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.result)) return data.result;
+        console.error("[supabase] resposta em formato inesperado:", JSON.stringify(data).slice(0, 300));
+        return null;
+      }
+      console.error(`[supabase] query falhou (HTTP ${r.status}): ${r.corpo}`);
+      if (r.status === 429 && i === 0) { await new Promise((res) => setTimeout(res, 800)); continue; }
+      return null;
+    } catch (e: any) {
+      console.error(`[supabase] erro de rede na query: ${e?.message || e}`);
+      if (i === 0) { await new Promise((res) => setTimeout(res, 500)); continue; }
+      return null;
+    }
   }
+  return null;
 }
 
 // Localiza tabelas que parecem guardar clientes/empresas ou usuários/logins
