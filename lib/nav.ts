@@ -40,7 +40,7 @@ export const PAGE_META: Record<string, { title: string; sub: string }> = {
   "/consumos": { title: "Consumos", sub: "Uso real por empresa e por sistema" },
   "/dados": { title: "Dados reais", sub: "Onde estão as tabelas de clientes e logins de cada sistema" },
   "/custos": { title: "Custos & Margem", sub: "Quanto custa manter tudo rodando" },
-  "/pagamentos": { title: "Pagamentos & Cobrança", sub: "Mercado Pago, carência e inadimplência" },
+  "/pagamentos": { title: "Pagamentos & Cobrança", sub: "Cobrança recorrente, carência e inadimplência" },
   "/acessos": { title: "Acessos", sub: "Tentativas de login por empresa e usuário" },
   "/termos": { title: "Termos de uso", sub: "O termo que cada cliente aceita no primeiro acesso" },
   "/seguranca": { title: "Segurança & Alertas", sub: "Limites, inadimplência e bugs" },
