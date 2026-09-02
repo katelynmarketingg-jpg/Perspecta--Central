@@ -1,11 +1,12 @@
 import { Card, Kpi, Pill, Icon } from "@/components/ui";
 import { getSistemas, getEmpresas, getPagamentos, empById, sysById } from "@/lib/data";
+import { getProvedorAtivo } from "@/lib/integrations/payments";
 import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function Pagamentos() {
-  const [empresas, pagamentos] = await Promise.all([getEmpresas(), getPagamentos()]);
+  const [empresas, pagamentos, provedor] = await Promise.all([getEmpresas(), getPagamentos(), getProvedorAtivo()]);
   const falhas = pagamentos.filter((p) => p.status === "falhou" || p.status === "vencido");
   const recebido = pagamentos.filter((p) => p.status === "pago").reduce((a, p) => a + p.valor, 0);
   const aReceber = pagamentos.filter((p) => p.status !== "pago").reduce((a, p) => a + p.valor, 0);
@@ -22,7 +23,7 @@ export default async function Pagamentos() {
 
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Cobrança recorrente por <b>Mercado Pago</b> (cartão tokenizado — o Central nunca vê o número). Carência padrão <b>7 dias</b> após falha; ao esgotar, o acesso do tenant é bloqueado automaticamente.</span>
+        <span>Cobrança recorrente por <b>{provedor.nome}</b> (o Central nunca guarda o número do cartão). Carência padrão <b>7 dias</b> após falha; ao esgotar, o acesso do tenant é bloqueado automaticamente. Troque o provedor em <b>Configurações</b>.</span>
       </div>
 
       <Card title="Pagamentos que não entraram" hint="exigem sua ação — com motivo e carência">

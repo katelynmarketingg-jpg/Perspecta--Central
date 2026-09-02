@@ -1,5 +1,6 @@
 import { getConvitePorToken } from "@/lib/convites";
 import { planById, getSistemas } from "@/lib/data";
+import { getProvedorAtivoId } from "@/lib/integrations/payments";
 import PagamentoSelfService from "@/components/PagamentoSelfService";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export default async function Pagina({ params }: { params: { token: string } }) 
       </div>
     );
   }
-  const sistemas = await getSistemas();
+  const [sistemas, provider] = await Promise.all([getSistemas(), getProvedorAtivoId()]);
   const sistema = sistemas.find((s) => s.id === convite.sistemaId);
   const plano = planById(convite.planoId);
 
@@ -28,6 +29,8 @@ export default async function Pagina({ params }: { params: { token: string } }) 
       convite={convite}
       sistema={sistema ? { nome: sistema.nome, cor: sistema.cor, url: sistema.url } : null}
       plano={plano ? { nome: plano.nome, valor: plano.valor } : null}
+      provider={provider}
+      mpPublicKey={process.env.MERCADOPAGO_PUBLIC_KEY || null}
     />
   );
 }

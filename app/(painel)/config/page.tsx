@@ -1,16 +1,18 @@
 import { Card, Pill, Icon } from "@/components/ui";
 import { integrationStatus } from "@/lib/data";
+import { getProvedorAtivoId, TODOS_PROVEDORES } from "@/lib/integrations/payments";
+import SeletorPagamento from "@/components/SeletorPagamento";
 import { PRECOS, CAMBIO_USD_BRL, usdToBrl } from "@/lib/precos";
 import { BRL } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default function Config() {
+export default async function Config() {
   const st = integrationStatus();
+  const ativo = await getProvedorAtivoId();
   const rows = [
     { nome: "Supabase Management", on: st.supabase, desc: "Status, uso (banco/storage) e custo estimado por projeto", env: "SUPABASE_MANAGEMENT_TOKEN" },
     { nome: "Vercel API", on: st.vercel, desc: "Último deploy, runtime errors e uso (banda) por projeto", env: "VERCEL_API_TOKEN" },
-    { nome: "Mercado Pago", on: st.mercadopago, desc: "Cobrança recorrente por cartão tokenizado", env: "MERCADOPAGO_ACCESS_TOKEN" },
   ];
 
   return (
@@ -31,6 +33,10 @@ export default function Config() {
             </tbody>
           </table>
         </div>
+      </Card>
+
+      <Card title="Provedor de pagamento" hint="escolha quem processa a cobrança recorrente dos clientes">
+        <SeletorPagamento ativo={ativo} provedores={TODOS_PROVEDORES.map((p) => ({ id: p.id, nome: p.nome, configurado: p.configured() }))} />
       </Card>
 
       <Card title="Preços de referência da infraestrutura"

@@ -144,14 +144,16 @@ export async function registrarLoginCriado(token: string, usuario: string): Prom
   return { ok: res !== null };
 }
 
-export async function confirmarPagamento(token: string): Promise<{ ok: boolean; erro?: string }> {
+export async function confirmarPagamento(token: string, provider?: string, externalId?: string): Promise<{ ok: boolean; erro?: string }> {
   const r = await ref();
   if (!r) return { ok: false, erro: "Supabase não configurado." };
   const c = await getConvitePorToken(token);
   if (!c) return { ok: false, erro: "Convite não encontrado." };
   if (c.status !== "trial" && c.status !== "aguardando_pagamento") return { ok: false, erro: "Este convite não está aguardando pagamento." };
   const tokSafe = token.replace(/[^a-z0-9]/gi, "");
-  const res = await runSupabaseQuery(r, `update central.convites set status = 'ativo', ativado_em = now() where token = '${tokSafe}';`);
+  const prov = provider ? `'${provider.replace(/[^a-z0-9_-]/gi, "")}'` : "null";
+  const ext = externalId ? `'${externalId.replace(/'/g, "''")}'` : "null";
+  const res = await runSupabaseQuery(r, `update central.convites set status = 'ativo', ativado_em = now(), pagamento_provider = ${prov}, pagamento_external_id = ${ext} where token = '${tokSafe}';`);
   return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível confirmar o pagamento." };
 }
 
