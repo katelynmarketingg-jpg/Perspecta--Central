@@ -10,7 +10,6 @@ export const NAV: NavGroup[] = [
       { href: "/clientes", label: "Clientes", icon: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18.5 20a5.5 5.5 0 0 0-3-4.9"/>' },
       { href: "/planos", label: "Planos", icon: '<path d="M12 2l3 6 6 .5-4.5 4 1.5 6-6-3.5L6 18.5 7.5 12.5 3 8.5 9 8z"/>' },
       { href: "/consumos", label: "Consumos", icon: '<path d="M3 12h4l3 8 4-16 3 8h4"/>' },
-      { href: "/dados", label: "Dados reais", icon: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>' },
     ],
   },
   {
