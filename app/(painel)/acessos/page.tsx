@@ -3,9 +3,11 @@ import AcessosCreator from "@/components/AcessosCreator";
 import AcessosConvite from "@/components/AcessosConvite";
 import { getSistemas, getPlanos } from "@/lib/data";
 import { listarConvites } from "@/lib/convites";
-import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured } from "@/lib/integrations/creator";
+import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured, creatorStatus } from "@/lib/integrations/creator";
 import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
+import { jurisConfigured, jurisStatus } from "@/lib/integrations/juris";
+import { commerceConfigured, commerceStatus } from "@/lib/integrations/commerce";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -20,14 +22,22 @@ export default async function Acessos() {
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
 
-  const [me, orgsRes, recRes, contasRows, bistroEst, convites] = await Promise.all([
+  const [me, orgsRes, recRes, contasRows, bistroEst, convites, creatorSt, jurisSt, commerceSt] = await Promise.all([
     creatorConfigured() ? creatorMe() : Promise.resolve({ ok: false, superadmin: false, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorReceita() : Promise.resolve({ receita: null }),
     refSb && supabaseConfigured() ? getContasRows(refSb) : Promise.resolve({ commerce: [], juris: [] }),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
     listarConvites(),
+    creatorConfigured() ? creatorStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
+    jurisConfigured() ? jurisStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
+    commerceConfigured() ? commerceStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
   ]);
+  const diag = [
+    { sis: "Creator", st: creatorSt },
+    { sis: "Juris", st: jurisSt },
+    { sis: "Commerce", st: commerceSt },
+  ];
   const planos = getPlanos();
   const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
   const cor = corDe("creator");
@@ -60,6 +70,26 @@ export default async function Acessos() {
               <Kpi icon='<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>' k="Em teste (Creator)" v={r.emTeste} /></>
           : <Kpi icon='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' k="Creator" v={me.superadmin ? "master" : "conta comum"} />}
       </div>
+
+      <Card title="Criar acesso — diagnóstico por sistema" hint="se cada sistema está pronto para criar login automático">
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Sistema</th><th>Status</th><th>Detalhe / o que falta</th></tr></thead>
+            <tbody>
+              {diag.map((d) => (
+                <tr key={d.sis}>
+                  <td style={{ fontWeight: 600 }}>{d.sis}</td>
+                  <td>{!d.st.configurado ? <Pill s="sem_dados" label="sem chave" /> : d.st.ok ? <Pill s="ativo" label="pronto" /> : <Pill s="inad" label="erro" />}</td>
+                  <td style={{ color: d.st.ok ? "var(--muted)" : "var(--crit)", fontSize: 12.5 }}>
+                    {!d.st.configurado ? "faltam as variáveis desse sistema no Vercel" : d.st.ok ? "conecta e pode criar acesso" : (d.st.erro || "falha ao conectar")}
+                  </td>
+                </tr>
+              ))}
+              <tr><td style={{ fontWeight: 600 }}>Bistro</td><td><Pill s={firebaseConfigured() ? "ativo" : "sem_dados"} label={firebaseConfigured() ? "lê ao vivo" : "sem chave"} /></td><td style={{ color: "var(--muted)", fontSize: 12.5 }}>criação automática ainda não; hoje só leitura</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <Card title="Empresas por sistema" hint={`${empresas.length} no total · lidas ao vivo`}>
         {empresas.length === 0 ? (
