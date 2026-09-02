@@ -4,9 +4,8 @@ import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default function Pagamentos() {
-  const empresas = getEmpresas();
-  const pagamentos = getPagamentos();
+export default async function Pagamentos() {
+  const [empresas, pagamentos] = await Promise.all([getEmpresas(), getPagamentos()]);
   const falhas = pagamentos.filter((p) => p.status === "falhou" || p.status === "vencido");
   const recebido = pagamentos.filter((p) => p.status === "pago").reduce((a, p) => a + p.valor, 0);
   const aReceber = pagamentos.filter((p) => p.status !== "pago").reduce((a, p) => a + p.valor, 0);
@@ -30,7 +29,7 @@ export default function Pagamentos() {
         {falhas.length === 0 ? (
           <div className="card-b"><span style={{ color: "var(--muted)" }}>Nenhuma falha em aberto.</span></div>
         ) : falhas.map((p) => {
-          const e = empById(p.emp)!;
+          const e = empById(empresas, p.emp)!;
           return (
             <div className="alert crit" key={p.id}>
               <div className="aic"><Icon path='<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>' size={16} /></div>
@@ -80,7 +79,7 @@ export default function Pagamentos() {
             <thead><tr><th>Empresa</th><th>Sistema</th><th className="r">Valor</th><th>Método</th><th>Data</th><th>Tentativas</th><th>Status</th></tr></thead>
             <tbody>
               {pagamentos.map((p) => {
-                const e = empById(p.emp)!;
+                const e = empById(empresas, p.emp)!;
                 return (
                   <tr key={p.id}>
                     <td><div className="co"><div className="ci">{initials(e.nome)}</div><div className="cn">{e.nome}</div></div></td>

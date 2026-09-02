@@ -1,5 +1,5 @@
 import { Card, Pill, SourceTag, Icon } from "@/components/ui";
-import { getSistemas, receitaSistema } from "@/lib/data";
+import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus, firebaseConfigured, getContagemContasBistro } from "@/lib/integrations/firebase";
 import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supabase";
@@ -13,11 +13,12 @@ export const maxDuration = 60;
 const dotColor = (s: string) =>
   s === "operacional" ? "var(--good)" : s === "degradado" ? "var(--warn)" : s === "com_erro" ? "var(--crit)" : "var(--faint)";
 
-// Banco de dados de cada sistema (derivado do host e do supabaseRef).
-function bancoDe(host: string, supabaseRef: string | null): { nome: string; nota: string; cor: string } {
-  if (supabaseRef) return { nome: "Supabase", nota: "Postgres · plano Free · compartilhado Commerce+Juris", cor: "var(--good)" };
-  if (host === "Firebase") return { nome: "Realtime Database", nota: "Firebase · plano Spark", cor: "var(--warn)" };
-  return { nome: "sem banco próprio", nota: "ainda usa dados de exemplo", cor: "var(--faint)" };
+// Banco de dados de cada sistema — vem direto de central.sistemas (real);
+// só cai pro heurístico se o campo não estiver preenchido.
+function bancoDe(banco: string | null | undefined, supabaseRef: string | null): { nome: string; cor: string } {
+  if (banco) return { nome: banco, cor: /nenhum/i.test(banco) ? "var(--faint)" : "var(--good)" };
+  if (supabaseRef) return { nome: "Supabase (Postgres)", cor: "var(--good)" };
+  return { nome: "sem banco próprio", cor: "var(--faint)" };
 }
 
 // Custo real de infra hoje. Vercel/Firebase no grátis; Render lido ao vivo pela API.
@@ -34,7 +35,7 @@ function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): 
 }
 
 export default async function Infra() {
-  const sistemas = await getSistemas();
+  const [sistemas, empresas] = await Promise.all([getSistemas(), getEmpresas()]);
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos] = await Promise.all([
     creatorStatus(),
@@ -81,15 +82,15 @@ export default async function Infra() {
         {sistemas.map((s) => {
           // Creator conecta pela API própria; Bistro pelo Firebase — refletir "ao vivo".
           const creatorLive = s.id === "creator" && creatorSt.ok;
-          const bistroLive = s.host === "Firebase" && fireSt.ok;
+          const bistroLive = s.id === "bistro" && fireSt.ok;
           const status = creatorLive || bistroLive ? "operacional" : s.status;
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
           // "Contas" = empresas que pagam/usam o sistema (fontes reais por sistema).
           const contas: number | null = contasPorSistema[s.id] ?? null;
-          const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(s.id);
+          const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(empresas, s.id);
           const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
-          const banco = bancoDe(s.host, s.supabaseRef);
+          const banco = bancoDe(s.banco, s.supabaseRef);
           const custo = custoInfra(s.host, true, s.host === "Render" ? renderCustoDoSistema(s.url) : null);
           return (
             <div className="card sys-card" key={s.id}>

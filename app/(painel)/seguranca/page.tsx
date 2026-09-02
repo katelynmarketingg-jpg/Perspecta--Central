@@ -5,14 +5,12 @@ import { nomeCurto } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function Seguranca() {
-  const sistemas = await getSistemas();
-  const empresas = getEmpresas();
-  const pagamentos = getPagamentos();
+  const [sistemas, empresas, pagamentos] = await Promise.all([getSistemas(), getEmpresas(), getPagamentos()]);
 
   const alerts: { sev: string; t: string; d: string; tm: string; ico: string }[] = [];
   pagamentos.forEach((p) => {
     if (p.status === "vencido" || p.status === "falhou") {
-      const e = empById(p.emp)!;
+      const e = empById(empresas, p.emp)!;
       alerts.push({ sev: "crit", t: (p.status === "vencido" ? "Inadimplência" : "Pagamento falhou") + " — " + e.nome, d: p.motivo || "", tm: p.data, ico: '<path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>' });
     }
   });

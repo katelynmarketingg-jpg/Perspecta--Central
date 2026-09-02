@@ -107,7 +107,7 @@ export default async function Dashboard() {
               <thead><tr><th>Sistema</th><th>Onde roda</th><th>Status</th><th className="r">Contas</th><th className="r">Receita</th></tr></thead>
               <tbody>
                 {sistemas.map((s) => {
-                  const live = (s.id === "creator" && creatorSt.ok) || (s.host === "Firebase" && fireSt.ok);
+                  const live = (s.id === "creator" && creatorSt.ok) || (s.id === "bistro" && fireSt.ok);
                   const status = live ? "operacional" : s.status;
                   const c = contasPorSistema[s.id];
                   return (

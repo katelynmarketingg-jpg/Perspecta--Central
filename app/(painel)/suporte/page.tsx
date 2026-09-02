@@ -1,15 +1,15 @@
 import { Pill } from "@/components/ui";
-import { getTickets, empById, sysById } from "@/lib/data";
+import { getTickets, getEmpresas, empById, sysById } from "@/lib/data";
 import { initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 const prioCls: Record<string, string> = { alta: "crit", media: "warn", baixa: "muted" };
 
-export default function Suporte() {
-  const tickets = getTickets();
+export default async function Suporte() {
+  const [tickets, empresas] = await Promise.all([Promise.resolve(getTickets()), getEmpresas()]);
   const sel = tickets[0];
-  const e = sel ? empById(sel.emp) : null;
+  const e = sel ? empById(empresas, sel.emp) : null;
 
   return (
     <>
@@ -17,7 +17,7 @@ export default function Suporte() {
       <div className="row2">
         <div className="card" style={{ overflow: "hidden" }}>
           {tickets.map((t) => {
-            const emp = empById(t.emp)!;
+            const emp = empById(empresas, t.emp)!;
             return (
               <div key={t.id} style={{ padding: "13px 16px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 5 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

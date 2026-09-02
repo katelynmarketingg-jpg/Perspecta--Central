@@ -17,6 +17,9 @@ export type Sistema = {
   bugs: { t: string; sev: "alta" | "media" | "baixa"; st: string; d: string }[];
   // Storage real (MB) do projeto quando vem ao vivo do Supabase; ausente = usar estimativa.
   storageLiveMb?: number;
+  // Onde o banco de dados desse sistema vive de verdade (ex.: "Firebase Realtime Database",
+  // "Supabase (Postgres)", "nenhum"). Vem de central.sistemas — texto livre, já pronto pra exibir.
+  banco?: string | null;
 };
 
 export type Plano = {
