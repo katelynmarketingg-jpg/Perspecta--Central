@@ -20,6 +20,8 @@ export type CriarAssinaturaInput = {
   cartao?: DadosCartao;
   // Usado pelo InfinitePay pra montar a descrição do link.
   nomePlano?: string;
+  // Base pra montar a URL de webhook (ex.: https://perspecta-central.vercel.app).
+  webhookBaseUrl?: string;
 };
 
 export type ResultadoAssinatura = {

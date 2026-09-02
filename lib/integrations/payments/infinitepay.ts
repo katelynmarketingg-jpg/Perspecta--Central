@@ -25,6 +25,7 @@ async function criarAssinatura(input: CriarAssinaturaInput): Promise<ResultadoAs
         order_nsu: input.externalRef,
         items: [{ quantity: 1, price: Math.round(input.valor * 100), description: input.nomePlano ? `Assinatura Perspecta — ${input.nomePlano}` : "Assinatura Perspecta" }],
         customer: { name: input.nomeCliente, email: input.email },
+        ...(input.webhookBaseUrl ? { webhook_url: `${input.webhookBaseUrl}/api/webhooks/infinitepay` } : {}),
       }),
     });
     if (!res.ok) return { ok: false, erro: `InfinitePay HTTP ${res.status}` };

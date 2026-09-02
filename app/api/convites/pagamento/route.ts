@@ -26,6 +26,7 @@ export async function POST(req: Request) {
   const sub = await provider.criarAssinatura({
     nomeCliente: c.empresaNome, email: c.email, valor: plano.valor, externalRef: `conv_${c.id}`,
     nomePlano: plano.nome, mpCardToken: body.mpCardToken, cartao: body.cartao,
+    webhookBaseUrl: new URL(req.url).origin,
   });
   if (!sub.ok) return NextResponse.json({ error: sub.erro || "Não foi possível processar o pagamento." }, { status: 400 });
 
