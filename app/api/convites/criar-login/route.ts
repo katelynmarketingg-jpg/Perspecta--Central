@@ -29,7 +29,7 @@ export async function POST(req: Request) {
 
   const { adminUsuario, adminNome, adminSenha, whatsapp } = body as Record<string, string>;
   if (!adminSenha) return NextResponse.json({ error: "Escolha uma senha." }, { status: 400 });
-  if (c.sistemaId !== "commerce" && !adminUsuario?.trim()) return NextResponse.json({ error: "Escolha um usuário." }, { status: 400 });
+  if (!adminUsuario?.trim()) return NextResponse.json({ error: "Escolha um usuário." }, { status: 400 });
 
   if (c.sistemaId === "creator") {
     if (!creatorConfigured()) {
@@ -46,13 +46,14 @@ export async function POST(req: Request) {
     if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar o acesso." }, { status: 400 });
     await registrarLoginCriado(c.token, adminUsuario.trim());
   } else {
-    // Commerce: login é sempre o e-mail do convite (Supabase Auth é por e-mail).
+    // Commerce: login é Empresa (nome do convite) + Nome + Senha — igual à
+    // tela /login de lá, que não pede e-mail nenhum.
     if (!commerceConfigured()) {
       return NextResponse.json({ error: "A criação automática de acesso ainda não está configurada (falta a chave do Commerce). A Perspecta vai criar seu acesso manualmente em breve." }, { status: 400 });
     }
-    const r = await criarLojaCommerce({ nomeLoja: c.empresaNome, email: c.email, senha: adminSenha });
+    const r = await criarLojaCommerce({ nomeLoja: c.empresaNome, adminUsuario, senha: adminSenha });
     if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar o acesso." }, { status: 400 });
-    await registrarLoginCriado(c.token, c.email);
+    await registrarLoginCriado(c.token, adminUsuario.trim());
   }
 
   return NextResponse.json({ ok: true });

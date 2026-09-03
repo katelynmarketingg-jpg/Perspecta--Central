@@ -2,6 +2,28 @@
 // usuário de verdade via a própria API do Supabase (Auth + RPC create_tenant),
 // sem precisar de nenhum backend customizado do Commerce.
 // Env: COMMERCE_SUPABASE_URL, COMMERCE_SUPABASE_ANON_KEY, COMMERCE_SUPABASE_SERVICE_ROLE_KEY.
+//
+// O Commerce hoje loga por Empresa + Nome + Senha (sem tela de e-mail): por
+// baixo, cada login vira uma conta do Supabase Auth com um e-mail interno
+// determinístico (empresa+nome). Pra um acesso criado por aqui funcionar de
+// verdade, o e-mail da conta TEM que ser calculado com a mesma fórmula que o
+// próprio Commerce usa no login — senão a conta existe mas ninguém consegue
+// entrar nela. Ver src/app/actions/auth.ts (internalEmailFor) no Commerce.
+
+function slugify(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)+/g, "");
+}
+
+function internalEmailFor(empresa: string, nome: string): string {
+  const empresaSlug = slugify(empresa) || "loja";
+  const nomeSlug = slugify(nome) || "user";
+  return `${empresaSlug}.${nomeSlug}@contas.perspectacommerce.app`;
+}
 
 export function commerceConfigured(): boolean {
   return Boolean(process.env.COMMERCE_SUPABASE_URL && process.env.COMMERCE_SUPABASE_ANON_KEY && process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY);
@@ -19,33 +41,36 @@ function baseUrl(): string {
   return (process.env.COMMERCE_SUPABASE_URL || "").replace(/\/+$/, "");
 }
 
-export type NovaLojaCommerce = { nomeLoja: string; email: string; senha: string };
+export type NovaLojaCommerce = { nomeLoja: string; adminUsuario: string; senha: string };
 
 // Cria o usuário (já confirmado, sem esperar e-mail), loga como ele e cria a
 // loja (tenant) via a função create_tenant do próprio banco — o mesmo caminho
 // que a página pública /signup do Commerce usa, só que feito pelo servidor.
+// O login do cliente vai ser Empresa "nomeLoja" + Nome "adminUsuario" + a
+// senha escolhida — igual a como ele vai digitar em /login no Commerce.
 export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: boolean; erro?: string }> {
   if (!commerceConfigured()) return { ok: false, erro: `falta configurar: ${faltando().join(", ")}` };
   if (!input.nomeLoja?.trim()) return { ok: false, erro: "informe o nome da loja." };
-  if (!input.email?.trim() || !input.senha) return { ok: false, erro: "informe e-mail e senha." };
+  if (!input.adminUsuario?.trim() || !input.senha) return { ok: false, erro: "informe usuário e senha." };
 
   const url = baseUrl();
   const anon = process.env.COMMERCE_SUPABASE_ANON_KEY as string;
   const service = process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string;
+  const email = internalEmailFor(input.nomeLoja, input.adminUsuario);
 
   try {
     // 1) Cria o usuário já confirmado (Admin API — precisa da service role).
     const criaRes = await fetch(`${url}/auth/v1/admin/users`, {
       method: "POST",
       headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: input.email.trim(), password: input.senha, email_confirm: true }),
+      body: JSON.stringify({ email, password: input.senha, email_confirm: true, user_metadata: { empresa: input.nomeLoja.trim(), nome: input.adminUsuario.trim() } }),
     });
     const criaTxt = await criaRes.text();
     let criaJ: any = {}; try { criaJ = JSON.parse(criaTxt); } catch {}
     if (!criaRes.ok) {
       const msg = criaJ?.msg || criaJ?.message || criaTxt.slice(0, 160);
       if (criaRes.status === 422 || /already.*registered/i.test(msg)) {
-        return { ok: false, erro: "já existe uma conta com esse e-mail no Commerce." };
+        return { ok: false, erro: "já existe um acesso com esse usuário nessa empresa." };
       }
       return { ok: false, erro: `criar usuário deu HTTP ${criaRes.status}${msg ? ` – ${msg}` : ""}` };
     }
@@ -54,7 +79,7 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
     const loginRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
       method: "POST",
       headers: { apikey: anon, "Content-Type": "application/json" },
-      body: JSON.stringify({ email: input.email.trim(), password: input.senha }),
+      body: JSON.stringify({ email, password: input.senha }),
     });
     const loginJ: any = await loginRes.json().catch(() => ({}));
     if (!loginRes.ok || !loginJ?.access_token) {
@@ -65,7 +90,7 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
     const rpcRes = await fetch(`${url}/rest/v1/rpc/create_tenant`, {
       method: "POST",
       headers: { apikey: anon, Authorization: `Bearer ${loginJ.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_name: input.nomeLoja.trim(), p_slug: input.nomeLoja.trim() }),
+      body: JSON.stringify({ p_name: input.nomeLoja.trim(), p_slug: slugify(input.nomeLoja.trim()) }),
     });
     if (!rpcRes.ok) {
       const t = await rpcRes.text();
