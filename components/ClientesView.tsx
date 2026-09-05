@@ -16,6 +16,7 @@ const fmtValor = (v: any) => {
 
 export function ClientesView({ clientes }: { clientes: Cli[] }) {
   const [filtro, setFiltro] = useState<string>("Todos");
+  const [busca, setBusca] = useState("");
 
   // Sistemas presentes (com cor e contagem) para os chips de filtro.
   const sistemas = useMemo(() => {
@@ -27,7 +28,11 @@ export function ClientesView({ clientes }: { clientes: Cli[] }) {
     return [...m.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.n - a.n);
   }, [clientes]);
 
-  const lista = filtro === "Todos" ? clientes : clientes.filter((c) => c.sistema === filtro);
+  const porSistema = filtro === "Todos" ? clientes : clientes.filter((c) => c.sistema === filtro);
+  const buscaN = busca.trim().toLowerCase();
+  const lista = buscaN
+    ? porSistema.filter((c) => c.nome.toLowerCase().includes(buscaN) || String(c.email ?? "").toLowerCase().includes(buscaN))
+    : porSistema;
 
   const tem = (f: keyof Cli) => lista.some((c) => c[f] != null && c[f] !== "");
   const colTel = tem("telefone"), colDoc = tem("documento"), colValor = tem("valor"), colStatus = tem("status");
@@ -46,9 +51,14 @@ export function ClientesView({ clientes }: { clientes: Cli[] }) {
 
   return (
     <div className="card">
-      <div className="card-h">
+      <div className="card-h" style={{ flexWrap: "wrap", gap: 10 }}>
         <h3>Todos os clientes</h3>
         <span className="hint">{lista.length} · ao vivo</span>
+        <input
+          type="text" value={busca} onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou e-mail..."
+          style={{ background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 9, padding: "7px 12px", color: "var(--text)", fontSize: 13, minWidth: 200 }}
+        />
         <div className="act" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {chip("Todos", null, clientes.length)}
           {sistemas.map((s) => chip(s.nome, s.cor, s.n))}

@@ -7,7 +7,7 @@ import { renderConfigured, getRenderCustos } from "@/lib/integrations/render";
 import { getGatilhos } from "@/lib/gatilhos";
 import { listarConvites } from "@/lib/convites";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
-import { BRL, pct, nomeCurto } from "@/lib/format";
+import { BRL, pct, nomeCurto, statusLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -114,7 +114,7 @@ export default async function Dashboard() {
                     <tr key={s.id}>
                       <td><span className="sys-tag"><span className="sd" style={{ background: s.cor }} />{nomeCurto(s.nome)}</span></td>
                       <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{s.host}</td>
-                      <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor(status) }} /><span style={{ fontSize: 12.5 }}>{status === "operacional" ? "operacional" : status}</span></span></td>
+                      <td><span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor(status) }} /><span style={{ fontSize: 12.5 }}>{statusLabel(status)}</span></span></td>
                       <td className="r num">{c == null ? "—" : c}</td>
                       <td className="r num">{s.id === "creator" ? BRL(mrr) : "—"}</td>
                     </tr>

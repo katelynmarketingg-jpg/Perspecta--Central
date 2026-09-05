@@ -98,7 +98,7 @@ export default async function Infra() {
                 <div className="sys-logo" style={{ background: `linear-gradient(135deg,${s.cor},${s.cor}cc)` }}>{nomeCurto(s.nome)[0]}</div>
                 <div style={{ flex: 1 }}>
                   <div className="sys-name">{s.nome}</div>
-                  <div className="sys-url">{s.url}</div>
+                  <a href={`https://${s.url}`} target="_blank" rel="noreferrer" className="sys-url" style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>{s.url} ↗</a>
                 </div>
                 <span className="health-dot" style={{ background: dotColor(s.status) }} />
               </div>
