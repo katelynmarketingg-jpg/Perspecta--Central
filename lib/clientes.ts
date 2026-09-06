@@ -13,6 +13,7 @@ import { nomeCurto } from "./format";
 export type Cli = {
   nome: string; email: any; telefone: any; documento: any; valor: any;
   status: any; sistema: string; sistemaId: string; cor: string; fonte: string;
+  criadoEm: string | null;
 };
 
 function pick(row: Record<string, any>, re: RegExp): any {
@@ -20,6 +21,16 @@ function pick(row: Record<string, any>, re: RegExp): any {
     if (re.test(k) && row[k] != null && row[k] !== "") return row[k];
   }
   return null;
+}
+
+// Data de criação, quando o sistema de origem manda uma — não inventamos
+// uma data para quem não tem; esse cliente simplesmente fica de fora dos
+// relatórios que dependem de "quando chegou".
+function pickData(row: Record<string, any>): string | null {
+  const v = pick(row, /created_at|criado_em|inserted_at|data_cadastro|createdat|joined_at|signup/i);
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
 }
 
 function normaliza(row: Record<string, any>, sistema: string, sistemaId: string, cor: string, fonte: string, nomeForcado?: string): Cli {
@@ -30,6 +41,7 @@ function normaliza(row: Record<string, any>, sistema: string, sistemaId: string,
     documento: pick(row, /cpf|cnpj|documento|tax_id/i),
     valor: pick(row, /valor|amount|preco|price|total|mensalidade|monthly|plan_price/i),
     status: pick(row, /status|situacao|situação|subscription/i),
+    criadoEm: pickData(row),
     sistema, sistemaId, cor, fonte,
   };
 }

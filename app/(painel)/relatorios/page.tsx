@@ -1,8 +1,9 @@
 import { Card, Kpi, Icon } from "@/components/ui";
 import { RelatorioExport } from "@/components/RelatorioExport";
+import { ChegadasChart } from "@/components/ChegadasChart";
 import { getResumoCusto } from "@/lib/gatilhos";
 import { getClientesUnificados } from "@/lib/clientes";
-import { BRL } from "@/lib/format";
+import { BRL, initials } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,6 +33,28 @@ export default async function Relatorios() {
   }
   const sistemasRank = [...porSis.entries()].map(([nome, v]) => ({ nome, ...v })).sort((a, b) => b.receita - a.receita);
   const maxRec = Math.max(...sistemasRank.map((s) => s.receita), 1);
+
+  // Receita por empresa: as que mais pagam, dado real (c.valor de cada uma).
+  const topClientes = [...clientes]
+    .map((c) => ({ ...c, valorNum: toNum(c.valor) }))
+    .filter((c) => c.valorNum > 0)
+    .sort((a, b) => b.valorNum - a.valorNum)
+    .slice(0, 10);
+  const maxCliente = Math.max(...topClientes.map((c) => c.valorNum), 1);
+
+  // Chegadas de clientes por mês: só entra quem tem data de cadastro real —
+  // sem ela, o cliente simplesmente não aparece no gráfico (não é erro).
+  const comData = clientes.filter((c) => c.criadoEm);
+  const hoje = new Date();
+  const mesesJanela = 6;
+  const chegadasPorMes = Array.from({ length: mesesJanela }, (_, i) => {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - (mesesJanela - 1 - i), 1);
+    return { ano: d.getFullYear(), mes: d.getMonth(), rotulo: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "") };
+  }).map((m) => ({
+    rotulo: m.rotulo,
+    qtd: comData.filter((c) => { const dc = new Date(c.criadoEm!); return dc.getFullYear() === m.ano && dc.getMonth() === m.mes; }).length,
+  }));
+  const semData = clientes.length - comData.length;
 
   const exportRows = sistemasRank.map((s) => ({
     Sistema: s.nome, Empresas: s.empresas, "Receita/mes": Math.round(s.receita),
@@ -119,6 +142,39 @@ export default async function Relatorios() {
           Receita = soma dos valores lidos em cada sistema. Onde ainda não há valor cadastrado, aparece "—".
         </div>
       </Card>
+
+      <Card title="Receita por empresa" hint={topClientes.length > 0 ? "as 10 que mais pagam" : "sem valor cadastrado ainda"}>
+        {topClientes.length === 0 ? (
+          <div className="card-b"><span style={{ color: "var(--muted)" }}>Nenhuma empresa com valor cadastrado ainda.</span></div>
+        ) : (
+          <div className="tablewrap">
+            <table>
+              <thead><tr><th>Empresa</th><th>Sistema</th><th className="r">Receita/mês</th><th></th></tr></thead>
+              <tbody>
+                {topClientes.map((c, i) => (
+                  <tr key={i}>
+                    <td><div className="co"><div className="ci">{initials(c.nome)}</div><div className="cn">{c.nome}</div></div></td>
+                    <td><span className="sys-tag"><span className="sd" style={{ background: c.cor }} />{c.sistema}</span></td>
+                    <td className="r num" style={{ color: "var(--good)", fontWeight: 600 }}>{BRL(c.valorNum)}</td>
+                    <td style={{ minWidth: 120 }}><div className="hbar-track"><div className="hbar-fill" style={{ width: (c.valorNum / maxCliente) * 100 + "%", background: c.cor }} /></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {comData.length > 0 && (
+        <Card title="Chegadas de clientes por mês" hint={`últimos ${mesesJanela} meses · dado real, por data de cadastro`}>
+          <ChegadasChart meses={chegadasPorMes} />
+          {semData > 0 && (
+            <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--faint)" }}>
+              {semData} {semData === 1 ? "empresa" : "empresas"} sem data de cadastro no sistema de origem — não {semData === 1 ? "entra" : "entram"} neste gráfico.
+            </div>
+          )}
+        </Card>
+      )}
     </>
   );
 }
