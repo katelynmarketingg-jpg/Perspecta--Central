@@ -1,16 +1,22 @@
 import { Card, Kpi, Pill, Icon } from "@/components/ui";
 import { getSistemas, getEmpresas, getPagamentos, empById, sysById } from "@/lib/data";
 import { getProvedorAtivo } from "@/lib/integrations/payments";
+import { listarDespesas, situacaoDespesa } from "@/lib/despesas";
+import DespesasView from "@/components/Despesas";
 import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function Pagamentos() {
-  const [empresas, pagamentos, provedor] = await Promise.all([getEmpresas(), getPagamentos(), getProvedorAtivo()]);
+  const [sistemas, empresas, pagamentos, provedor, despesas] = await Promise.all([
+    getSistemas(), getEmpresas(), getPagamentos(), getProvedorAtivo(), listarDespesas(),
+  ]);
   const falhas = pagamentos.filter((p) => p.status === "falhou" || p.status === "vencido");
   const recebido = pagamentos.filter((p) => p.status === "pago").reduce((a, p) => a + p.valor, 0);
   const aReceber = pagamentos.filter((p) => p.status !== "pago").reduce((a, p) => a + p.valor, 0);
   const emCarencia = empresas.filter((e) => e.carenciaRestante != null);
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
+  const despesasComSituacao = despesas.map((d) => ({ ...d, situacao: situacaoDespesa(d) }));
 
   return (
     <>
@@ -97,6 +103,8 @@ export default async function Pagamentos() {
           </table>
         </div>
       </Card>
+
+      <DespesasView sistemas={sisSimples} despesas={despesasComSituacao} />
     </>
   );
 }
