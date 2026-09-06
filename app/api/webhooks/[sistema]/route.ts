@@ -10,7 +10,8 @@ export const runtime = "nodejs";
 //   Header  X-Perspecta-Signature: HMAC-SHA256(corpo, webhook_secret do sistema), hex
 //   Header  X-Idempotency-Key: qualquer string única por evento (evita duplicar em retry)
 //   Body    { "tipo": "login.novo" | "cadastro.novo" | "pagamento.confirmado" |
-//                     "limite.atingido" | "acesso.suspeito" | "suporte.mensagem",
+//                     "limite.atingido" | "acesso.suspeito" | "suporte.mensagem" |
+//                     "uso.medido",
 //             "empresa_ref": "id da empresa no sistema de origem",
 //             "dados": { ...específico de cada tipo } }
 // Resposta: sempre 200 se a assinatura bater (mesmo que o processamento

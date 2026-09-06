@@ -30,7 +30,22 @@ export function assinaturaValida(corpoRaw: string, assinatura: string | null, se
   return timingSafeEqual(a, b);
 }
 
-export type TipoEvento = "login.novo" | "cadastro.novo" | "pagamento.confirmado" | "limite.atingido" | "acesso.suspeito" | "suporte.mensagem";
+export type TipoEvento = "login.novo" | "cadastro.novo" | "pagamento.confirmado" | "limite.atingido" | "acesso.suspeito" | "suporte.mensagem" | "uso.medido";
+
+async function ensureUsoConsumo(r: string) {
+  await runSupabaseQuery(r, `
+    create schema if not exists central;
+    create table if not exists central.uso_consumo (
+      id uuid primary key default gen_random_uuid(),
+      sistema_id text not null,
+      empresa_ref text not null,
+      metrica text not null,
+      valor numeric not null,
+      limite numeric,
+      plano text,
+      medido_em timestamptz not null default now()
+    );`);
+}
 
 // Registra o evento com idempotência: se a idempotency_key já existir, não
 // reprocessa (devolve duplicado:true) — protege contra retry do lado do sistema-cliente.
@@ -80,12 +95,41 @@ export async function processarEvento(sistemaId: string, tipo: string, dados: an
       return { ok: true };
     }
     if (tipo === "suporte.mensagem") {
-      const rows = await runSupabaseQuery(r, `insert into central.tickets_suporte (sistema_id, usuario_external_id, assunto, external_ticket_ref)
-        values ('${sid}', ${dados?.usuario_id ? `'${esc(dados.usuario_id)}'` : "null"}, ${dados?.assunto ? `'${esc(dados.assunto)}'` : "'Sem assunto'"}, ${dados?.ticket_ref ? `'${esc(dados.ticket_ref)}'` : "null"})
-        returning id;`);
-      const ticketId = rows?.[0]?.id;
-      if (ticketId && dados?.mensagem) {
-        await runSupabaseQuery(r, `insert into central.mensagens_ticket (ticket_id, autor_tipo, corpo) values ('${ticketId}', 'cliente', '${esc(dados.mensagem)}');`);
+      // Ainda não usado por nenhum sistema (chamado hoje é registro interno
+      // — ver lib/suporte.ts); mantido alinhado ao mesmo schema para quando
+      // o cliente final passar a poder abrir chamado direto no sistema dele.
+      const { criarTicket } = await import("./suporte");
+      const res = await criarTicket({
+        assunto: dados?.assunto ? String(dados.assunto) : "Mensagem do cliente",
+        categoria: "duvida", prioridade: "media", sistemaId,
+        empresaRef: dados?.empresa_ref ? String(dados.empresa_ref) : null,
+        mensagem: dados?.mensagem ? String(dados.mensagem) : "",
+      });
+      return res.ok ? { ok: true } : { ok: false, erro: res.erro };
+    }
+    if (tipo === "uso.medido") {
+      await ensureUsoConsumo(r);
+      const metricas: [string, number][] = [];
+      if (dados?.metricas && typeof dados.metricas === "object") {
+        for (const [k, v] of Object.entries(dados.metricas)) {
+          const n = Number(v);
+          if (Number.isFinite(n)) metricas.push([k, n]);
+        }
+      } else {
+        if (dados?.gb != null && Number.isFinite(Number(dados.gb))) metricas.push(["storage_gb", Number(dados.gb)]);
+        if (dados?.logins != null && Number.isFinite(Number(dados.logins))) metricas.push(["logins", Number(dados.logins)]);
+      }
+      if (metricas.length === 0) return { ok: false, erro: "uso.medido sem nenhuma métrica numérica" };
+      if (!dados?.empresa_ref) return { ok: false, erro: "uso.medido sem empresa_ref" };
+      const limites: Record<string, number> = {};
+      if (dados?.limites && typeof dados.limites === "object") {
+        for (const [k, v] of Object.entries(dados.limites)) { const n = Number(v); if (Number.isFinite(n)) limites[k] = n; }
+      }
+      const empresaRef = `'${esc(dados.empresa_ref)}'`;
+      const plano = dados?.plano ? `'${esc(dados.plano)}'` : "null";
+      for (const [metrica, valor] of metricas) {
+        const limite = limites[metrica] != null ? String(limites[metrica]) : "null";
+        await runSupabaseQuery(r, `insert into central.uso_consumo (sistema_id, empresa_ref, metrica, valor, limite, plano) values ('${sid}', ${empresaRef}, '${esc(metrica)}', ${valor}, ${limite}, ${plano});`);
       }
       return { ok: true };
     }

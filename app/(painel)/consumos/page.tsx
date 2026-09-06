@@ -1,5 +1,8 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getGatilhos, type Gatilho } from "@/lib/gatilhos";
+import { getSistemas } from "@/lib/data";
+import { ultimoUsoPorEmpresa } from "@/lib/uso-consumo";
+import ConsumoPorAcesso from "@/components/ConsumoPorAcesso";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +16,8 @@ const ROTULO: Record<string, string> = {
 };
 
 export default async function Consumos() {
-  const gatilhos = await getGatilhos();
+  const [gatilhos, sistemas, usoAcessos] = await Promise.all([getGatilhos(), getSistemas(), ultimoUsoPorEmpresa()]);
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
 
   return (
     <>
@@ -28,6 +32,10 @@ export default async function Consumos() {
         <div className="card-b" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {gatilhos.map((g, i) => <Linha key={i} g={g} />)}
         </div>
+      </Card>
+
+      <Card title="Consumo por acesso" hint="quanto cada cliente usa do plano dele — dado que o próprio sistema mede e manda">
+        <ConsumoPorAcesso sistemas={sisSimples} registros={usoAcessos} />
       </Card>
     </>
   );
