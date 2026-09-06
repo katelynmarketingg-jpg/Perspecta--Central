@@ -52,6 +52,29 @@ export async function detectarAcessoMultiploDispositivo(): Promise<LoginSuspeito
   }));
 }
 
+export type LoginRecente = {
+  sistemaId: string; empresaRef: string | null; usuarioEmail: string | null;
+  ip: string | null; resultado: string; motivo: string | null; quando: string;
+};
+
+// Histórico de login de todos os sistemas — a "Lista de acessos" completa,
+// não só o resumo de 24h. Usada em /acessos.
+export async function listarLoginsRecentes(limite = 100): Promise<LoginRecente[]> {
+  const r = await ref();
+  if (!r) return [];
+  const rows = await runSupabaseQuery(
+    r,
+    `select sistema_id, empresa_ref, usuario_email, ip, resultado, motivo, quando
+     from central.login_attempts
+     order by quando desc
+     limit ${Math.max(1, Math.min(500, limite))};`
+  );
+  return (rows || []).map((x: any) => ({
+    sistemaId: String(x.sistema_id), empresaRef: x.empresa_ref, usuarioEmail: x.usuario_email,
+    ip: x.ip, resultado: String(x.resultado), motivo: x.motivo, quando: x.quando,
+  }));
+}
+
 export type ResumoLogins = { sistemaId: string; sucessos24h: number; falhas24h: number };
 
 export async function resumoLoginsPorSistema(): Promise<ResumoLogins[]> {

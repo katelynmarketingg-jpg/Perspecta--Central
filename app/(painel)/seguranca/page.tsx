@@ -2,6 +2,9 @@ import { Card, Icon, Pill } from "@/components/ui";
 import { getSistemas, getEmpresas, getPagamentos, empById, sysById, planById } from "@/lib/data";
 import { listarAlertasReais, detectarAcessoMultiploDispositivo, resumoLoginsPorSistema } from "@/lib/seguranca";
 import { nomeCurto } from "@/lib/format";
+import { creatorStatus } from "@/lib/integrations/creator";
+import { jurisStatus } from "@/lib/integrations/juris";
+import { commerceStatus } from "@/lib/integrations/commerce";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +14,15 @@ const SEV_ICO: Record<string, string> = {
 };
 
 export default async function Seguranca() {
-  const [sistemas, empresas, pagamentos, alertasReais, multiDispositivo, resumoLogins] = await Promise.all([
+  const [sistemas, empresas, pagamentos, alertasReais, multiDispositivo, resumoLogins, creatorSt, jurisSt, commerceSt] = await Promise.all([
     getSistemas(), getEmpresas(), getPagamentos(), listarAlertasReais(), detectarAcessoMultiploDispositivo(), resumoLoginsPorSistema(),
+    creatorStatus(), jurisStatus(), commerceStatus(),
   ]);
+  const integracoes = [
+    { nome: "Creator", ok: creatorSt.ok, erro: creatorSt.erro },
+    { nome: "Juris", ok: jurisSt.ok, erro: jurisSt.erro },
+    { nome: "Commerce", ok: commerceSt.ok, erro: commerceSt.erro },
+  ];
   const nomeDoSistema = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
   const corDoSistema = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
 
@@ -79,6 +88,23 @@ export default async function Seguranca() {
           </div>
         </Card>
       )}
+
+      <Card title="Status das integrações" hint="a mesma checagem de Configurações, pra ficar visível aqui também">
+        <div className="tablewrap">
+          <table>
+            <thead><tr><th>Integração</th><th>Status</th><th>Observação</th></tr></thead>
+            <tbody>
+              {integracoes.map((i) => (
+                <tr key={i.nome}>
+                  <td style={{ fontWeight: 600 }}>{i.nome}</td>
+                  <td>{i.ok ? <Pill s="ativo" label="Conectada" /> : <Pill s={i.erro ? "com_erro" : "sem_dados"} label={i.erro ? "Erro" : "Não configurada"} />}</td>
+                  <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{i.erro || (i.ok ? "Cria acesso automaticamente." : "—")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
 
       <div className="row2">
         <Card title="Central de alertas" hint={alerts.length + " eventos"}>

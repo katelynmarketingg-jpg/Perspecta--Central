@@ -4,35 +4,56 @@ import { getProvedorAtivoId, TODOS_PROVEDORES } from "@/lib/integrations/payment
 import SeletorPagamento from "@/components/SeletorPagamento";
 import { PRECOS, CAMBIO_USD_BRL, usdToBrl } from "@/lib/precos";
 import { BRL } from "@/lib/format";
+import { creatorStatus } from "@/lib/integrations/creator";
+import { jurisStatus } from "@/lib/integrations/juris";
+import { commerceStatus } from "@/lib/integrations/commerce";
+import { firebaseStatus } from "@/lib/integrations/firebase";
 
 export const dynamic = "force-dynamic";
+
+const VERCEL_ENV_URL = "https://vercel.com/katelynmarketingg-5736s-projects/perspecta-central/settings/environment-variables";
 
 export default async function Config() {
   const st = integrationStatus();
   const ativo = await getProvedorAtivoId();
+  const [creatorSt, jurisSt, commerceSt, firebaseSt] = await Promise.all([
+    creatorStatus(), jurisStatus(), commerceStatus(), firebaseStatus(),
+  ]);
+
   const rows = [
-    { nome: "Supabase Management", on: st.supabase, desc: "Status, uso (banco/storage) e custo estimado por projeto", env: "SUPABASE_MANAGEMENT_TOKEN" },
-    { nome: "Vercel API", on: st.vercel, desc: "Último deploy, runtime errors e uso (banda) por projeto", env: "VERCEL_API_TOKEN" },
+    { nome: "Supabase Management", desc: "Status, uso (banco/storage) e dado real de toda a Central", env: "SUPABASE_MANAGEMENT_TOKEN", ok: st.supabase, erro: undefined as string | undefined },
+    { nome: "Vercel API", desc: "Último deploy, runtime errors e uso (banda) por projeto", env: "VERCEL_API_TOKEN", ok: st.vercel, erro: undefined as string | undefined },
+    { nome: "Creator", desc: "Clientes, receita e criação automática de acesso", env: "CREATOR_API_URL, CREATOR_USER, CREATOR_PASS", ok: creatorSt.ok, erro: creatorSt.erro },
+    { nome: "Juris", desc: "Criação automática de acesso (escritório + admin)", env: "JURIS_API_URL, JURIS_EMPRESA, JURIS_USER, JURIS_PASS", ok: jurisSt.ok, erro: jurisSt.erro },
+    { nome: "Commerce", desc: "Criação automática de loja + login do cliente", env: "COMMERCE_SUPABASE_URL, COMMERCE_SUPABASE_ANON_KEY, COMMERCE_SUPABASE_SERVICE_ROLE_KEY", ok: commerceSt.ok, erro: commerceSt.erro },
+    { nome: "Bistro (Firebase)", desc: "Leitura ao vivo dos estabelecimentos — ainda sem criação automática", env: "FIREBASE_SERVICE_ACCOUNT_B64, FIREBASE_DATABASE_URL", ok: firebaseSt.ok, erro: firebaseSt.erro },
   ];
 
   return (
     <>
-      <Card title="Integrações" hint="conecte as chaves na Vercel (variáveis de ambiente)">
+      <Card title="Integrações" hint="cada chave fica na Vercel — aqui só o status ao vivo e pra onde ir"
+        action={<a href={VERCEL_ENV_URL} target="_blank" rel="noreferrer" className="selectlike" style={{ textDecoration: "none" }}>Abrir variáveis na Vercel ↗</a>}>
         <div className="tablewrap">
           <table>
-            <thead><tr><th>Integração</th><th>O que traz</th><th>Variável</th><th>Status</th></tr></thead>
+            <thead><tr><th>Integração</th><th>O que traz</th><th>Variável (na Vercel)</th><th>Status</th></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.nome}>
                   <td style={{ fontWeight: 600 }}>{r.nome}</td>
-                  <td style={{ color: "var(--muted)" }}>{r.desc}</td>
-                  <td className="num" style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{r.env}</td>
-                  <td>{r.on ? <Pill s="ativo" label="Conectada" /> : <Pill s="sem_dados" label="Não configurada" />}</td>
+                  <td style={{ color: "var(--muted)" }}>
+                    {r.desc}
+                    {r.erro && <div style={{ color: "var(--crit)", fontSize: 12, marginTop: 3 }}>{r.erro}</div>}
+                  </td>
+                  <td className="num" style={{ fontFamily: "var(--mono)", fontSize: 11.5 }}>{r.env}</td>
+                  <td>{r.ok ? <Pill s="ativo" label="Conectada" /> : <Pill s={r.erro ? "com_erro" : "sem_dados"} label={r.erro ? "Erro" : "Não configurada"} />}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p style={{ color: "var(--muted)", fontSize: 12, padding: "10px 4px 0" }}>
+          O token nunca fica guardado dentro do app — colar a chave aqui numa tela exigiria armazenar segredo em banco, o que é menos seguro que a Vercel. Por isso o botão acima leva direto pra lá.
+        </p>
       </Card>
 
       <Card title="Provedor de pagamento" hint="escolha quem processa a cobrança recorrente dos clientes">

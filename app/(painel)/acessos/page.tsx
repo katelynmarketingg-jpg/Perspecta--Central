@@ -1,6 +1,7 @@
 import { Icon, Kpi, Card, Pill } from "@/components/ui";
 import AcessosCreator from "@/components/AcessosCreator";
 import AcessosConvite from "@/components/AcessosConvite";
+import { HistoricoLogins, type LoginRow } from "@/components/HistoricoLogins";
 import { getSistemas, getPlanos } from "@/lib/data";
 import { listarConvites } from "@/lib/convites";
 import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured, creatorStatus } from "@/lib/integrations/creator";
@@ -8,6 +9,7 @@ import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integra
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { jurisConfigured, jurisStatus } from "@/lib/integrations/juris";
 import { commerceConfigured, commerceStatus } from "@/lib/integrations/commerce";
+import { listarLoginsRecentes } from "@/lib/seguranca";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +24,7 @@ export default async function Acessos() {
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
 
-  const [me, orgsRes, recRes, contasRows, bistroEst, convites, creatorSt, jurisSt, commerceSt] = await Promise.all([
+  const [me, orgsRes, recRes, contasRows, bistroEst, convites, creatorSt, jurisSt, commerceSt, loginsReais] = await Promise.all([
     creatorConfigured() ? creatorMe() : Promise.resolve({ ok: false, superadmin: false, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorReceita() : Promise.resolve({ receita: null }),
@@ -32,7 +34,13 @@ export default async function Acessos() {
     creatorConfigured() ? creatorStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
     jurisConfigured() ? jurisStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
     commerceConfigured() ? commerceStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
+    listarLoginsRecentes(150),
   ]);
+  const linhasLogin: LoginRow[] = loginsReais.map((l) => ({
+    sistemaId: l.sistemaId, sistemaNome: nomeDe(l.sistemaId), cor: corDe(l.sistemaId),
+    empresaRef: l.empresaRef, usuarioEmail: l.usuarioEmail, ip: l.ip,
+    resultado: l.resultado, motivo: l.motivo, quando: l.quando,
+  }));
   const diag = [
     { sis: "Creator", st: creatorSt },
     { sis: "Juris", st: jurisSt },
@@ -91,6 +99,11 @@ export default async function Acessos() {
         </div>
       </Card>
 
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 15, margin: 0 }}>Convites de primeiro acesso — todos os sistemas</h3>
+      </div>
+      <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
+
       <Card title="Empresas por sistema" hint={`${empresas.length} no total · lidas ao vivo`}>
         {empresas.length === 0 ? (
           <div style={{ color: "var(--muted)", fontSize: 13.5 }}>
@@ -114,10 +127,13 @@ export default async function Acessos() {
         )}
       </Card>
 
-      <div className="sec-title" style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 15, margin: 0 }}>Convites de primeiro acesso — todos os sistemas</h3>
-      </div>
-      <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
+      <Card title="Lista de acessos" hint="todo login, de quem já manda o evento — sucesso e falha">
+        {linhasLogin.length === 0 ? (
+          <div style={{ color: "var(--muted)", fontSize: 13.5 }}>Ainda sem nenhum login registrado — aparece aqui assim que um sistema mandar o primeiro evento.</div>
+        ) : (
+          <HistoricoLogins linhas={linhasLogin} />
+        )}
+      </Card>
 
       <div className="sec-title" style={{ marginTop: 18 }}>
         <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
