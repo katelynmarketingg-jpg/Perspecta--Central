@@ -16,9 +16,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-type Emp = { nome: string; sistema: string; cor: string; gerenciavel: boolean };
+type Emp = { nome: string; sistemaId: string; sistema: string; cor: string; gerenciavel: boolean };
 
-export default async function Acessos() {
+export default async function Acessos({ searchParams }: { searchParams?: { sistema?: string } }) {
+  const filtro = searchParams?.sistema || "";
+  const mostrar = (id: string) => !filtro || filtro === id;
   const sistemas = await getSistemas();
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
@@ -54,21 +56,22 @@ export default async function Acessos() {
   // Empresas que usam cada sistema (visão Perspecta) — cada uma lida da sua
   // fonte real: Creator (API), Bistro (Firebase), Commerce (Supabase próprio),
   // Juris (API do Render).
-  const empresas: Emp[] = [];
-  for (const o of orgsRes.orgs || []) empresas.push({ nome: o.name, sistema: nomeDe("creator"), cor: corDe("creator"), gerenciavel: true });
-  for (const e of bistroEst || []) empresas.push({ nome: e.nome, sistema: nomeDe("bistro"), cor: corDe("bistro"), gerenciavel: false });
-  for (const c of lojasCommerce || []) empresas.push({ nome: c.nome, sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
-  for (const j of escritoriosJuris || []) empresas.push({ nome: j.nome, sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
+  const todasEmpresas: Emp[] = [];
+  for (const o of orgsRes.orgs || []) todasEmpresas.push({ nome: o.name, sistemaId: "creator", sistema: nomeDe("creator"), cor: corDe("creator"), gerenciavel: true });
+  for (const e of bistroEst || []) todasEmpresas.push({ nome: e.nome, sistemaId: "bistro", sistema: nomeDe("bistro"), cor: corDe("bistro"), gerenciavel: false });
+  for (const c of lojasCommerce || []) todasEmpresas.push({ nome: c.nome, sistemaId: "commerce", sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
+  for (const j of escritoriosJuris || []) todasEmpresas.push({ nome: j.nome, sistemaId: "juris", sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
+  const empresas = todasEmpresas.filter((e) => mostrar(e.sistemaId));
 
   const porSistema = new Map<string, number>();
   for (const e of empresas) porSistema.set(e.sistema, (porSistema.get(e.sistema) || 0) + 1);
 
   // Diagnóstico por fonte: null = não conseguiu ler; array = leu (pode ser 0).
   const fontes = [
-    { sis: "Creator", cor: corDe("creator"), leu: orgsRes.orgs !== null, n: (orgsRes.orgs || []).length, erro: orgsRes.erro },
-    { sis: "Juris", cor: corDe("juris"), leu: escritoriosJuris !== null, n: (escritoriosJuris || []).length, erro: jurisSt.erro },
-    { sis: "Commerce", cor: corDe("commerce"), leu: lojasCommerce !== null, n: (lojasCommerce || []).length, erro: commerceSt.erro },
-    { sis: "Bistro", cor: corDe("bistro"), leu: bistroEst !== null, n: (bistroEst || []).length, erro: firebaseConfigured() ? undefined : "sem chave" },
+    { id: "creator", sis: "Creator", cor: corDe("creator"), leu: orgsRes.orgs !== null, n: (orgsRes.orgs || []).length, erro: orgsRes.erro },
+    { id: "juris", sis: "Juris", cor: corDe("juris"), leu: escritoriosJuris !== null, n: (escritoriosJuris || []).length, erro: jurisSt.erro },
+    { id: "commerce", sis: "Commerce", cor: corDe("commerce"), leu: lojasCommerce !== null, n: (lojasCommerce || []).length, erro: commerceSt.erro },
+    { id: "bistro", sis: "Bistro", cor: corDe("bistro"), leu: bistroEst !== null, n: (bistroEst || []).length, erro: firebaseConfigured() ? undefined : "sem chave" },
   ];
 
   return (
@@ -116,14 +119,23 @@ export default async function Acessos() {
 
       <Card title="Empresas por sistema" hint={`${empresas.length} no total · lidas ao vivo`}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
-          {fontes.map((f) => (
-            <span key={f.sis} title={f.erro || ""} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 999, padding: "5px 12px", fontSize: 12.5 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: f.cor }} />
-              <b>{f.sis}</b>
-              {f.leu ? <span style={{ color: "var(--muted)" }}>{f.n} {f.n === 1 ? "conta" : "contas"}</span>
-                     : <span style={{ color: "var(--crit)" }}>não conectou</span>}
-            </span>
-          ))}
+          {filtro && (
+            <a href="/acessos" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 999, padding: "5px 12px", fontSize: 12.5, textDecoration: "none", color: "var(--text)" }}>
+              ← Todos
+            </a>
+          )}
+          {fontes.map((f) => {
+            const ativo = filtro === f.id;
+            return (
+              <a key={f.sis} href={ativo ? "/acessos" : `/acessos?sistema=${f.id}`} title={f.erro || "clique para filtrar"}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, background: ativo ? f.cor : "var(--panel-2)", border: `1px solid ${ativo ? f.cor : "var(--border)"}`, borderRadius: 999, padding: "5px 12px", fontSize: 12.5, textDecoration: "none", color: ativo ? "#fff" : "var(--text)" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: ativo ? "#fff" : f.cor }} />
+                <b>{f.sis}</b>
+                {f.leu ? <span style={{ color: ativo ? "rgba(255,255,255,.85)" : "var(--muted)" }}>{f.n} {f.n === 1 ? "conta" : "contas"}</span>
+                       : <span style={{ color: ativo ? "#fff" : "var(--crit)" }}>não conectou</span>}
+              </a>
+            );
+          })}
         </div>
         {empresas.length === 0 ? (
           <div style={{ color: "var(--muted)", fontSize: 13.5 }}>
@@ -138,7 +150,7 @@ export default async function Acessos() {
                   <tr key={i}>
                     <td style={{ fontWeight: 600 }}>{e.nome}</td>
                     <td><span className="sys-tag"><span className="sd" style={{ background: e.cor }} />{e.sistema}</span></td>
-                    <td>{e.gerenciavel ? <Pill s="ativo" label="gerenciar abaixo" /> : <Pill s="muted" label="em breve" />}</td>
+                    <td>{e.gerenciavel ? <Pill s="ativo" label="gerenciar abaixo" /> : (e.sistemaId === "commerce" || e.sistemaId === "juris") ? <Pill s="ativo" label="criar abaixo" /> : <Pill s="muted" label="em breve" />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -155,24 +167,34 @@ export default async function Acessos() {
         )}
       </Card>
 
-      <div className="sec-title" style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
-      </div>
-      <AcessosCreator me={me} orgs={orgsRes.orgs} orgsErro={orgsRes.erro} cor={cor} />
+      {mostrar("creator") && (
+        <>
+          <div className="sec-title" style={{ marginTop: 18 }}>
+            <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
+          </div>
+          <AcessosCreator me={me} orgs={orgsRes.orgs} orgsErro={orgsRes.erro} cor={cor} />
+        </>
+      )}
 
-      <div className="sec-title" style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 15, margin: 0 }}>Criar acesso direto — outros sistemas</h3>
-      </div>
-      <AcessosSistema
-        kind="juris" titulo="Perspecta Juris" cor={corDe("juris")}
-        pronto={jurisSt.configurado && jurisSt.ok}
-        motivoBloqueio={!jurisSt.configurado ? "Faltam as variáveis JURIS_* no Vercel." : jurisSt.erro}
-      />
-      <AcessosSistema
-        kind="commerce" titulo="Perspecta Commerce" cor={corDe("commerce")}
-        pronto={commerceSt.configurado && commerceSt.ok}
-        motivoBloqueio={!commerceSt.configurado ? "Faltam as variáveis COMMERCE_SUPABASE_* no Vercel." : commerceSt.erro}
-      />
+      {(mostrar("juris") || mostrar("commerce")) && (
+        <div className="sec-title" style={{ marginTop: 18 }}>
+          <h3 style={{ fontSize: 15, margin: 0 }}>Criar acesso direto — outros sistemas</h3>
+        </div>
+      )}
+      {mostrar("juris") && (
+        <AcessosSistema
+          kind="juris" titulo="Perspecta Juris" cor={corDe("juris")}
+          pronto={jurisSt.configurado && jurisSt.ok}
+          motivoBloqueio={!jurisSt.configurado ? "Faltam as variáveis JURIS_* no Vercel." : jurisSt.erro}
+        />
+      )}
+      {mostrar("commerce") && (
+        <AcessosSistema
+          kind="commerce" titulo="Perspecta Commerce" cor={corDe("commerce")}
+          pronto={commerceSt.configurado && commerceSt.ok}
+          motivoBloqueio={!commerceSt.configurado ? "Faltam as variáveis COMMERCE_SUPABASE_* no Vercel." : commerceSt.erro}
+        />
+      )}
     </>
   );
 }

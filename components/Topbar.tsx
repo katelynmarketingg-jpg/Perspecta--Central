@@ -1,5 +1,5 @@
 "use client";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PAGE_META } from "@/lib/nav";
 
@@ -9,10 +9,22 @@ function metaFor(path: string) {
   return PAGE_META[base] || { title: "Perspecta Central", sub: "" };
 }
 
-export default function Topbar() {
+type SisFiltro = { id: string; nome: string; cor: string };
+
+export default function Topbar({ sistemas = [] }: { sistemas?: SisFiltro[] }) {
   const path = usePathname();
+  const router = useRouter();
+  const params = useSearchParams();
   const meta = metaFor(path);
+  const sisAtual = params.get("sistema") || "";
   const [theme, setTheme] = useState<string>("dark");
+
+  const onFiltro = (id: string) => {
+    const p = new URLSearchParams(Array.from(params.entries()));
+    if (id) p.set("sistema", id); else p.delete("sistema");
+    const qs = p.toString();
+    router.push(qs ? `${path}?${qs}` : path);
+  };
 
   const THEMES = ["dark", "light", "bege"];
   const LABEL: Record<string, string> = { dark: "escuro", light: "claro", bege: "bege" };
@@ -37,11 +49,23 @@ export default function Topbar() {
         <div className="sub">{meta.sub}</div>
       </div>
       <div className="filters">
-        <span className="selectlike">
-          <span className="dot" /> Todos os sistemas
+        <span className="selectlike" style={{ position: "relative" }}>
+          <span className="dot" style={{ background: sistemas.find((s) => s.id === sisAtual)?.cor || undefined }} />
+          {sistemas.find((s) => s.id === sisAtual)?.nome || "Todos os sistemas"}
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <polyline points="6 9 12 15 18 9" />
           </svg>
+          <select
+            value={sisAtual}
+            onChange={(e) => onFiltro(e.target.value)}
+            aria-label="Filtrar por sistema"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer" }}
+          >
+            <option value="">Todos os sistemas</option>
+            {sistemas.map((s) => (
+              <option key={s.id} value={s.id}>{s.nome}</option>
+            ))}
+          </select>
         </span>
         <span className="icon-btn" onClick={toggle} title={`Tema: ${LABEL[theme]} — clique para trocar`} role="button">
           {theme === "dark" ? (
