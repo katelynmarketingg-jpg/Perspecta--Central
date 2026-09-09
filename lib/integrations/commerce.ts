@@ -113,48 +113,34 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
   }
 }
 
-// Lista os acessos que já existem no Commerce: as lojas (tenants) E as contas
-// de acesso (usuários Auth) — porque contas legadas (ex.: Perfume Prateado)
-// entram sem ter uma loja registrada. Junta os dois, sem duplicar. Cacheado 60s.
+// Lista os acessos que já existem no Commerce a partir das CONTAS de acesso
+// (usuários Auth) — cada login do Commerce é uma conta do Supabase Auth. Não
+// usa a tabela "tenants" de propósito: nesse projeto ela é compartilhada com o
+// Juris, então listar tenants misturaria escritório de Juris como se fosse
+// loja de Commerce. Cacheado 60s.
 async function _listarLojasCommerce(): Promise<{ nome: string; slug: string; criado: string }[] | null> {
   if (!commerceConfigured()) return null;
   const svc = process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string;
   const h = { apikey: svc, Authorization: `Bearer ${svc}` };
-  const saida: { nome: string; slug: string; criado: string }[] = [];
-  const vistos = new Set<string>();
-  const add = (nome: string, slug: string, criado: string) => {
-    const chave = (nome || slug).toLowerCase().trim();
-    if (!chave || vistos.has(chave)) return;
-    vistos.add(chave); saida.push({ nome, slug, criado });
-  };
-  let leu = false;
-  // 1) Lojas de verdade (tenants).
-  try {
-    const res = await fetch(`${baseUrl()}/rest/v1/tenants?select=name,slug,created_at&order=created_at.desc`, { headers: h, cache: "no-store" });
-    if (res.ok) {
-      leu = true;
-      const j: any = await res.json();
-      if (Array.isArray(j)) for (const t of j) add(String(t.name || t.slug || "—"), String(t.slug || ""), String(t.created_at || ""));
-    }
-  } catch {}
-  // 2) Contas de acesso (usuários) — pega a empresa do metadata; cobre as legadas.
   try {
     const res = await fetch(`${baseUrl()}/auth/v1/admin/users?per_page=200`, { headers: h, cache: "no-store" });
-    if (res.ok) {
-      leu = true;
-      const j: any = await res.json();
-      const users = Array.isArray(j) ? j : j?.users || [];
-      for (const u of users) {
-        const empresa = u?.user_metadata?.empresa || u?.raw_user_meta_data?.empresa;
-        const nome = empresa ? String(empresa) : String(u?.email || u?.id || "—");
-        add(nome, "", String(u?.created_at || ""));
-      }
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const users = Array.isArray(j) ? j : j?.users || [];
+    const saida: { nome: string; slug: string; criado: string }[] = [];
+    const vistos = new Set<string>();
+    for (const u of users) {
+      const empresa = u?.user_metadata?.empresa || u?.raw_user_meta_data?.empresa;
+      const nome = empresa ? String(empresa) : String(u?.email || u?.id || "—");
+      const chave = nome.toLowerCase().trim();
+      if (!chave || vistos.has(chave)) continue;
+      vistos.add(chave);
+      saida.push({ nome, slug: "", criado: String(u?.created_at || "") });
     }
-  } catch {}
-  if (!leu) return null; // não conseguiu ler nada → deixa claro na UI
-  return saida;
+    return saida;
+  } catch { return null; }
 }
-export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v2"], { revalidate: 60 });
+export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v3"], { revalidate: 60 });
 
 // Lista as contas (usuários Auth) do Commerce — para descobrir quem é o dono.
 export async function listarUsuariosCommerce(): Promise<{ email: string; criado: string }[] | null> {
