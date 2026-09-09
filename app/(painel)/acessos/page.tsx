@@ -63,6 +63,14 @@ export default async function Acessos() {
   const porSistema = new Map<string, number>();
   for (const e of empresas) porSistema.set(e.sistema, (porSistema.get(e.sistema) || 0) + 1);
 
+  // Diagnóstico por fonte: null = não conseguiu ler; array = leu (pode ser 0).
+  const fontes = [
+    { sis: "Creator", cor: corDe("creator"), leu: orgsRes.orgs !== null, n: (orgsRes.orgs || []).length, erro: orgsRes.erro },
+    { sis: "Juris", cor: corDe("juris"), leu: escritoriosJuris !== null, n: (escritoriosJuris || []).length, erro: jurisSt.erro },
+    { sis: "Commerce", cor: corDe("commerce"), leu: lojasCommerce !== null, n: (lojasCommerce || []).length, erro: commerceSt.erro },
+    { sis: "Bistro", cor: corDe("bistro"), leu: bistroEst !== null, n: (bistroEst || []).length, erro: firebaseConfigured() ? undefined : "sem chave" },
+  ];
+
   return (
     <>
       <div className="banner">
@@ -107,6 +115,16 @@ export default async function Acessos() {
       <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
 
       <Card title="Empresas por sistema" hint={`${empresas.length} no total · lidas ao vivo`}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          {fontes.map((f) => (
+            <span key={f.sis} title={f.erro || ""} style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 999, padding: "5px 12px", fontSize: 12.5 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: f.cor }} />
+              <b>{f.sis}</b>
+              {f.leu ? <span style={{ color: "var(--muted)" }}>{f.n} {f.n === 1 ? "conta" : "contas"}</span>
+                     : <span style={{ color: "var(--crit)" }}>não conectou</span>}
+            </span>
+          ))}
+        </div>
         {empresas.length === 0 ? (
           <div style={{ color: "var(--muted)", fontSize: 13.5 }}>
             Nenhuma empresa listada ainda. {!me.superadmin && "No Creator, conecte a conta master para ver todos os escritórios."}
