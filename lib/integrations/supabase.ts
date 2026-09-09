@@ -6,6 +6,12 @@ export function supabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_MANAGEMENT_TOKEN);
 }
 
+// Token limpo: remove espaços e QUALQUER caractere não-ASCII (ex.: "•" de
+// colagem ruim), que quebrava o header HTTP e derrubava toda query.
+function mgmtToken(): string {
+  return (process.env.SUPABASE_MANAGEMENT_TOKEN || "").replace(/[^\x21-\x7E]/g, "");
+}
+
 export async function getProjectHealth(ref: string): Promise<{
   status: "operacional" | "degradado" | "com_erro";
   dbUsageMb?: number;
@@ -13,7 +19,7 @@ export async function getProjectHealth(ref: string): Promise<{
 } | null> {
   if (!supabaseConfigured() || !ref) return null; // → provedor cai em mock
   try {
-    const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
+    const token = mgmtToken();
     const res = await fetch(`https://api.supabase.com/v1/projects/${ref}`, {
       headers: { Authorization: `Bearer ${token}` },
       // status de projeto muda devagar; cache curto
@@ -33,7 +39,7 @@ export async function getProjectHealth(ref: string): Promise<{
 // motivo real no runtime log da Vercel, pra dar pra diagnosticar depois.
 export async function runSupabaseQuery(ref: string, sql: string): Promise<any[] | null> {
   if (!supabaseConfigured() || !ref) return null;
-  const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
+  const token = mgmtToken();
   const tentativa = async (): Promise<{ ok: boolean; data?: any; status?: number; corpo?: string }> => {
     const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST",
@@ -149,7 +155,7 @@ async function _listSupabaseTables(ref: string): Promise<{ tabela: string; linha
 async function _getProjectDbSizeMb(ref: string): Promise<number | null> {
   if (!supabaseConfigured() || !ref) return null;
   try {
-    const token = process.env.SUPABASE_MANAGEMENT_TOKEN;
+    const token = mgmtToken();
     const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },

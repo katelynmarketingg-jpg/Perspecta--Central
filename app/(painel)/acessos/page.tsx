@@ -1,5 +1,6 @@
 import { Icon, Kpi, Card, Pill } from "@/components/ui";
 import AcessosCreator from "@/components/AcessosCreator";
+import AcessosSistema from "@/components/AcessosSistema";
 import AcessosConvite from "@/components/AcessosConvite";
 import { HistoricoLogins, type LoginRow } from "@/components/HistoricoLogins";
 import { getSistemas, getPlanos } from "@/lib/data";
@@ -139,6 +140,20 @@ export default async function Acessos() {
         <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
       </div>
       <AcessosCreator me={me} orgs={orgsRes.orgs} orgsErro={orgsRes.erro} cor={cor} />
+
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 15, margin: 0 }}>Criar acesso direto — outros sistemas</h3>
+      </div>
+      <AcessosSistema
+        kind="juris" titulo="Perspecta Juris" cor={corDe("juris")}
+        pronto={jurisSt.configurado && jurisSt.ok}
+        motivoBloqueio={!jurisSt.configurado ? "Faltam as variáveis JURIS_* no Vercel." : jurisSt.erro}
+      />
+      <AcessosSistema
+        kind="commerce" titulo="Perspecta Commerce" cor={corDe("commerce")}
+        pronto={commerceSt.configurado && commerceSt.ok}
+        motivoBloqueio={!commerceSt.configurado ? "Faltam as variáveis COMMERCE_SUPABASE_* no Vercel." : commerceSt.erro}
+      />
     </>
   );
 }
