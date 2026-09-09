@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 // Integração com o Perspecta Commerce (Next.js + Supabase) — cria a loja +
 // usuário de verdade via a própria API do Supabase (Auth + RPC create_tenant),
 // sem precisar de nenhum backend customizado do Commerce.
@@ -117,8 +118,8 @@ export async function listarUsuariosCommerce(): Promise<{ email: string; criado:
   } catch { return null; }
 }
 
-// Diagnóstico simples: as chaves respondem?
-export async function commerceStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
+// Diagnóstico simples: as chaves respondem? Cacheado 60s.
+async function _commerceStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
   if (!commerceConfigured()) return { configurado: false, ok: false, erro: `falta: ${faltando().join(", ")}` };
   try {
     const res = await fetch(`${baseUrl()}/auth/v1/settings`, { headers: { apikey: process.env.COMMERCE_SUPABASE_ANON_KEY as string } });
@@ -127,3 +128,4 @@ export async function commerceStatus(): Promise<{ configurado: boolean; ok: bool
     return { configurado: true, ok: false, erro: e?.message || "rede" };
   }
 }
+export const commerceStatus = unstable_cache(_commerceStatus, ["commerce-status-v1"], { revalidate: 60 });

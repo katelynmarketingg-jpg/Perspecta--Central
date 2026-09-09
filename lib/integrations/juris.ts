@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 // Integração com o Perspecta Juris (Render + Postgres) — cria escritório +
 // usuário admin de verdade via a API de master dele.
 // Env: JURIS_API_URL, JURIS_EMPRESA (nome do escritório master, ex.: "Perspecta Juris"),
@@ -78,9 +79,11 @@ export async function criarEscritorioJuris(input: NovoEscritorioJuris): Promise<
   }
 }
 
-// Diagnóstico: conecta na API do Juris como master.
-export async function jurisStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
+// Diagnóstico: conecta na API do Juris como master. Cacheado 60s (evita
+// refazer login no Render — lento em cold start — a cada carregamento).
+async function _jurisStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
   if (!jurisConfigured()) return { configurado: false, ok: false, erro: `falta: ${faltando().join(", ")}` };
   const { token, erro } = await jurisLogin();
   return { configurado: true, ok: Boolean(token), erro };
 }
+export const jurisStatus = unstable_cache(_jurisStatus, ["juris-status-v1"], { revalidate: 60 });
