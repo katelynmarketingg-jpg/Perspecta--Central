@@ -8,7 +8,7 @@ import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured, creato
 import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { jurisConfigured, jurisStatus } from "@/lib/integrations/juris";
-import { commerceConfigured, commerceStatus } from "@/lib/integrations/commerce";
+import { commerceConfigured, commerceStatus, listarUsuariosCommerce } from "@/lib/integrations/commerce";
 import { listarLoginsRecentes } from "@/lib/seguranca";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -46,6 +46,12 @@ export default async function Acessos() {
     { sis: "Juris", st: jurisSt },
     { sis: "Commerce", st: commerceSt },
   ];
+  // [master-debug] descobrir as contas de cada sistema (temporário).
+  if (commerceConfigured()) {
+    const us = await listarUsuariosCommerce();
+    console.log("[master-debug] Commerce contas:", JSON.stringify(us));
+  }
+  console.log("[master-debug] Creator me:", JSON.stringify(me), "| Juris status:", JSON.stringify(jurisSt), "| Commerce status:", JSON.stringify(commerceSt));
   const planos = getPlanos();
   const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
   const cor = corDe("creator");
