@@ -113,6 +113,23 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
   }
 }
 
+// Lista as lojas (tenants) já cadastradas no Commerce — para mostrar os
+// acessos que já existem. Lê direto na tabela via service role. Cacheado 60s.
+async function _listarLojasCommerce(): Promise<{ nome: string; slug: string; criado: string }[] | null> {
+  if (!commerceConfigured()) return null;
+  try {
+    const res = await fetch(`${baseUrl()}/rest/v1/tenants?select=name,slug,created_at&order=created_at.desc`, {
+      headers: { apikey: process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string, Authorization: `Bearer ${process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    if (!Array.isArray(j)) return null;
+    return j.map((t: any) => ({ nome: String(t.name || t.slug || "—"), slug: String(t.slug || ""), criado: String(t.created_at || "") }));
+  } catch { return null; }
+}
+export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v1"], { revalidate: 60 });
+
 // Lista as contas (usuários Auth) do Commerce — para descobrir quem é o dono.
 export async function listarUsuariosCommerce(): Promise<{ email: string; criado: string }[] | null> {
   if (!commerceConfigured()) return null;

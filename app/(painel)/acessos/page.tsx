@@ -6,10 +6,9 @@ import { HistoricoLogins, type LoginRow } from "@/components/HistoricoLogins";
 import { getSistemas, getPlanos } from "@/lib/data";
 import { listarConvites } from "@/lib/convites";
 import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured, creatorStatus } from "@/lib/integrations/creator";
-import { supabaseConfigured, getContasRows, nomeEmpresaRow } from "@/lib/integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
-import { jurisConfigured, jurisStatus } from "@/lib/integrations/juris";
-import { commerceConfigured, commerceStatus } from "@/lib/integrations/commerce";
+import { jurisConfigured, jurisStatus, listarEscritoriosJuris } from "@/lib/integrations/juris";
+import { commerceConfigured, commerceStatus, listarLojasCommerce } from "@/lib/integrations/commerce";
 import { listarLoginsRecentes } from "@/lib/seguranca";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -21,15 +20,15 @@ type Emp = { nome: string; sistema: string; cor: string; gerenciavel: boolean };
 
 export default async function Acessos() {
   const sistemas = await getSistemas();
-  const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
 
-  const [me, orgsRes, recRes, contasRows, bistroEst, convites, creatorSt, jurisSt, commerceSt, loginsReais] = await Promise.all([
+  const [me, orgsRes, recRes, lojasCommerce, escritoriosJuris, bistroEst, convites, creatorSt, jurisSt, commerceSt, loginsReais] = await Promise.all([
     creatorConfigured() ? creatorMe() : Promise.resolve({ ok: false, superadmin: false, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorReceita() : Promise.resolve({ receita: null }),
-    refSb && supabaseConfigured() ? getContasRows(refSb) : Promise.resolve({ commerce: [], juris: [] }),
+    commerceConfigured() ? listarLojasCommerce() : Promise.resolve(null),
+    jurisConfigured() ? listarEscritoriosJuris() : Promise.resolve(null),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
     listarConvites(),
     creatorConfigured() ? creatorStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
@@ -52,12 +51,14 @@ export default async function Acessos() {
   const cor = corDe("creator");
   const r = recRes.receita;
 
-  // Empresas que usam cada sistema (visão Perspecta).
+  // Empresas que usam cada sistema (visão Perspecta) — cada uma lida da sua
+  // fonte real: Creator (API), Bistro (Firebase), Commerce (Supabase próprio),
+  // Juris (API do Render).
   const empresas: Emp[] = [];
   for (const o of orgsRes.orgs || []) empresas.push({ nome: o.name, sistema: nomeDe("creator"), cor: corDe("creator"), gerenciavel: true });
   for (const e of bistroEst || []) empresas.push({ nome: e.nome, sistema: nomeDe("bistro"), cor: corDe("bistro"), gerenciavel: false });
-  for (const c of contasRows.commerce || []) empresas.push({ nome: nomeEmpresaRow(c), sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
-  for (const j of contasRows.juris || []) empresas.push({ nome: nomeEmpresaRow(j), sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
+  for (const c of lojasCommerce || []) empresas.push({ nome: c.nome, sistema: nomeDe("commerce"), cor: corDe("commerce"), gerenciavel: false });
+  for (const j of escritoriosJuris || []) empresas.push({ nome: j.nome, sistema: nomeDe("juris"), cor: corDe("juris"), gerenciavel: false });
 
   const porSistema = new Map<string, number>();
   for (const e of empresas) porSistema.set(e.sistema, (porSistema.get(e.sistema) || 0) + 1);
