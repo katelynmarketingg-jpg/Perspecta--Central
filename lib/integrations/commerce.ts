@@ -102,6 +102,21 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
   }
 }
 
+// Lista as contas (usuários Auth) do Commerce — para descobrir quem é o dono.
+export async function listarUsuariosCommerce(): Promise<{ email: string; criado: string }[] | null> {
+  if (!commerceConfigured()) return null;
+  try {
+    const res = await fetch(`${baseUrl()}/auth/v1/admin/users?per_page=50`, {
+      headers: { apikey: process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string, Authorization: `Bearer ${process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const users = Array.isArray(j) ? j : j?.users || [];
+    return users.map((u: any) => ({ email: String(u.email || u.id), criado: String(u.created_at || "") })).sort((a: any, b: any) => a.criado.localeCompare(b.criado));
+  } catch { return null; }
+}
+
 // Diagnóstico simples: as chaves respondem?
 export async function commerceStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
   if (!commerceConfigured()) return { configurado: false, ok: false, erro: `falta: ${faltando().join(", ")}` };
