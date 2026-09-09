@@ -79,6 +79,30 @@ export async function criarEscritorioJuris(input: NovoEscritorioJuris): Promise<
   }
 }
 
+// Lista os escritórios (tenants) já cadastrados no Juris — os acessos que já
+// existem. GET /api/master/companies com o token master. Cacheado 60s.
+async function _listarEscritoriosJuris(): Promise<{ nome: string; plano: string; usuarios: number; clientes: number }[] | null> {
+  if (!jurisConfigured()) return null;
+  const { token } = await jurisLogin();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${baseUrl()}/api/master/companies`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    const j: any = await res.json();
+    const rows = Array.isArray(j) ? j : j?.companies || j?.data || [];
+    return rows.map((t: any) => ({
+      nome: String(t.name || t.nome || "—"),
+      plano: String(t.plan || t.plano || ""),
+      usuarios: Number(t.usersCount ?? t.usuarios ?? 0) || 0,
+      clientes: Number(t.clientsCount ?? t.clientes ?? 0) || 0,
+    }));
+  } catch { return null; }
+}
+export const listarEscritoriosJuris = unstable_cache(_listarEscritoriosJuris, ["juris-escritorios-v1"], { revalidate: 60 });
+
 // Diagnóstico: conecta na API do Juris como master. Cacheado 60s (evita
 // refazer login no Render — lento em cold start — a cada carregamento).
 async function _jurisStatus(): Promise<{ configurado: boolean; ok: boolean; erro?: string }> {
