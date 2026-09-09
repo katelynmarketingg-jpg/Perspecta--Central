@@ -55,16 +55,17 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
   if (!input.adminUsuario?.trim() || !input.senha) return { ok: false, erro: "informe usuário e senha." };
 
   const url = baseUrl();
-  const anon = process.env.COMMERCE_SUPABASE_ANON_KEY as string;
   const service = process.env.COMMERCE_SUPABASE_SERVICE_ROLE_KEY as string;
   const email = internalEmailFor(input.nomeLoja, input.adminUsuario);
 
+  const nomeLoja = input.nomeLoja.trim();
+  const slug = slugify(nomeLoja) || "loja";
   try {
     // 1) Cria o usuário já confirmado (Admin API — precisa da service role).
     const criaRes = await fetch(`${url}/auth/v1/admin/users`, {
       method: "POST",
       headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: input.senha, email_confirm: true, user_metadata: { empresa: input.nomeLoja.trim(), nome: input.adminUsuario.trim() } }),
+      body: JSON.stringify({ email, password: input.senha, email_confirm: true, user_metadata: { empresa: nomeLoja, nome: input.adminUsuario.trim() } }),
     });
     const criaTxt = await criaRes.text();
     let criaJ: any = {}; try { criaJ = JSON.parse(criaTxt); } catch {}
@@ -75,27 +76,36 @@ export async function criarLojaCommerce(input: NovaLojaCommerce): Promise<{ ok: 
       }
       return { ok: false, erro: `criar usuário deu HTTP ${criaRes.status}${msg ? ` – ${msg}` : ""}` };
     }
+    const userId: string | undefined = criaJ?.id || criaJ?.user?.id;
+    if (!userId) return { ok: false, erro: "usuário criado, mas o Supabase não devolveu o id dele." };
 
-    // 2) Loga como o usuário recém-criado (grant password) — pega um token dele.
-    const loginRes = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    // 2) Cria a loja (tenant) direto na tabela com a service role — não depende
+    // do RPC create_tenant (que às vezes some do cache do PostgREST). Bypassa RLS.
+    const tenantRes = await fetch(`${url}/rest/v1/tenants`, {
       method: "POST",
-      headers: { apikey: anon, "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: input.senha }),
+      headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json", Prefer: "return=representation" },
+      body: JSON.stringify({ name: nomeLoja, slug }),
     });
-    const loginJ: any = await loginRes.json().catch(() => ({}));
-    if (!loginRes.ok || !loginJ?.access_token) {
-      return { ok: false, erro: `usuário criado, mas não consegui logar como ele (HTTP ${loginRes.status}).` };
+    const tenantTxt = await tenantRes.text();
+    if (!tenantRes.ok) {
+      // Desfaz o usuário órfão pra poder tentar de novo com o mesmo login.
+      await fetch(`${url}/auth/v1/admin/users/${userId}`, { method: "DELETE", headers: { apikey: service, Authorization: `Bearer ${service}` } }).catch(() => {});
+      if (/duplicate|already exists|unique/i.test(tenantTxt)) return { ok: false, erro: "já existe uma loja com esse nome. Tente outro." };
+      return { ok: false, erro: `usuário criado, mas a loja não (HTTP ${tenantRes.status} – ${tenantTxt.slice(0, 160)}).` };
     }
+    let tenantJ: any = null; try { tenantJ = JSON.parse(tenantTxt); } catch {}
+    const tenantId: string | undefined = Array.isArray(tenantJ) ? tenantJ[0]?.id : tenantJ?.id;
+    if (!tenantId) return { ok: false, erro: "loja criada, mas sem id de retorno." };
 
-    // 3) Cria a loja (tenant) com esse token — auth.uid() resolve certo.
-    const rpcRes = await fetch(`${url}/rest/v1/rpc/create_tenant`, {
+    // 3) Vincula o usuário como dono (owner) da loja.
+    const memRes = await fetch(`${url}/rest/v1/memberships`, {
       method: "POST",
-      headers: { apikey: anon, Authorization: `Bearer ${loginJ.access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_name: input.nomeLoja.trim(), p_slug: slugify(input.nomeLoja.trim()) }),
+      headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ tenant_id: tenantId, user_id: userId, role: "owner" }),
     });
-    if (!rpcRes.ok) {
-      const t = await rpcRes.text();
-      return { ok: false, erro: `usuário criado, mas a loja não (HTTP ${rpcRes.status} – ${t.slice(0, 160)}).` };
+    if (!memRes.ok) {
+      const t = await memRes.text();
+      return { ok: false, erro: `loja criada, mas não consegui vincular o dono (HTTP ${memRes.status} – ${t.slice(0, 160)}).` };
     }
     return { ok: true };
   } catch (e: any) {
