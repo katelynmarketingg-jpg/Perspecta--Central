@@ -1,7 +1,9 @@
 import { Card, Kpi, Pill, Icon } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { getCreatorReceita, creatorStatus } from "@/lib/integrations/creator";
-import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supabase";
+import { supabaseConfigured } from "@/lib/integrations/supabase";
+import { jurisConfigured, listarEscritoriosJuris } from "@/lib/integrations/juris";
+import { commerceConfigured, listarLojasCommerce } from "@/lib/integrations/commerce";
 import { firebaseConfigured, firebaseStatus, getContagemContasBistro } from "@/lib/integrations/firebase";
 import { renderConfigured, getRenderCustos } from "@/lib/integrations/render";
 import { getGatilhos } from "@/lib/gatilhos";
@@ -18,11 +20,11 @@ const dotColor = (s: string) =>
 
 export default async function Dashboard() {
   const sistemas = await getSistemas();
-  const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
 
-  const [creatorRec, contasSb, bistroContas, renderRes, gatilhos, creatorSt, fireSt, convites] = await Promise.all([
+  const [creatorRec, lojasCommerce, escritoriosJuris, bistroContas, renderRes, gatilhos, creatorSt, fireSt, convites] = await Promise.all([
     getCreatorReceita(),
-    refSb && supabaseConfigured() ? getContagemContas(refSb) : Promise.resolve({ juris: null, commerce: null } as any),
+    commerceConfigured() ? listarLojasCommerce() : Promise.resolve(null),
+    jurisConfigured() ? listarEscritoriosJuris() : Promise.resolve(null),
     firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null } as any),
     renderConfigured() ? getRenderCustos() : Promise.resolve({ custos: null } as any),
     getGatilhos(),
@@ -33,8 +35,8 @@ export default async function Dashboard() {
 
   const contasPorSistema: Record<string, number | null> = {
     creator: creatorRec.receita?.total ?? null,
-    juris: contasSb.juris ?? null,
-    commerce: contasSb.commerce ?? null,
+    juris: escritoriosJuris ? escritoriosJuris.length : null,
+    commerce: lojasCommerce ? lojasCommerce.length : null,
     bistro: bistroContas.n ?? null,
   };
   const totalContas = Object.values(contasPorSistema).reduce((a: number, n) => a + (n ?? 0), 0);
