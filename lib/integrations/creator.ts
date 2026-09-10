@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { fetchT } from "../fetch-timeout";
 
 // Integração com o Perspecta Creator (Render + SQLite): não dá para ler o banco
 // direto (é um arquivo no disco do Render), então o Central usa a API REST do
@@ -31,12 +32,12 @@ async function creatorLogin(): Promise<{ token: string | null; erro?: string }> 
   };
   if (process.env.CREATOR_ORG) body.organization = process.env.CREATOR_ORG;
   try {
-    const res = await fetch(url, {
+    const res = await fetchT(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
-    });
+    }, 10000);
     const txt = await res.text();
     if (!res.ok) {
       let msg = "";

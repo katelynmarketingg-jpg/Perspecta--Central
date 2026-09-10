@@ -1,6 +1,7 @@
 // Integração com a Supabase Management API — status/uso/advisories por projeto.
 // Enquanto SUPABASE_MANAGEMENT_TOKEN não estiver setado, o Central usa mock.
 import { unstable_cache } from "next/cache";
+import { fetchT } from "../fetch-timeout";
 
 export function supabaseConfigured(): boolean {
   return Boolean(process.env.SUPABASE_MANAGEMENT_TOKEN);
@@ -20,11 +21,11 @@ export async function getProjectHealth(ref: string): Promise<{
   if (!supabaseConfigured() || !ref) return null; // → provedor cai em mock
   try {
     const token = mgmtToken();
-    const res = await fetch(`https://api.supabase.com/v1/projects/${ref}`, {
+    const res = await fetchT(`https://api.supabase.com/v1/projects/${ref}`, {
       headers: { Authorization: `Bearer ${token}` },
       // status de projeto muda devagar; cache curto
       next: { revalidate: 300 },
-    });
+    }, 10000);
     if (!res.ok) return { status: "com_erro" };
     const p: any = await res.json();
     const paused = p?.status && String(p.status).toUpperCase().includes("PAUSE");
@@ -41,12 +42,12 @@ export async function runSupabaseQuery(ref: string, sql: string): Promise<any[] 
   if (!supabaseConfigured() || !ref) return null;
   const token = mgmtToken();
   const tentativa = async (): Promise<{ ok: boolean; data?: any; status?: number; corpo?: string }> => {
-    const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+    const res = await fetchT(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ query: sql }),
       cache: "no-store",
-    });
+    }, 12000);
     if (!res.ok) {
       const corpo = await res.text().catch(() => "");
       return { ok: false, status: res.status, corpo: corpo.slice(0, 500) };
@@ -156,12 +157,12 @@ async function _getProjectDbSizeMb(ref: string): Promise<number | null> {
   if (!supabaseConfigured() || !ref) return null;
   try {
     const token = mgmtToken();
-    const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
+    const res = await fetchT(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ query: "select pg_database_size(current_database()) as bytes;" }),
       next: { revalidate: 300 },
-    });
+    }, 10000);
     if (!res.ok) return null;
     const data: any = await res.json();
     const row = Array.isArray(data) ? data[0] : data?.result?.[0] ?? data?.[0];
