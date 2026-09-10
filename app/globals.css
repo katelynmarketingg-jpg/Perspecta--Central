@@ -202,3 +202,32 @@ th.r,td.r{text-align:right;}
   .row2,.row2b{grid-template-columns:1fr;}
   .content{padding:16px 16px 32px;}
 }
+
+/* ── Polimento visual global (v2) ─────────────────────────────────────────
+   Transições suaves, grupos de menu mais legíveis, hover mais vivo e títulos
+   de seção consistentes — vale para todas as páginas de uma vez. */
+.nav a,.card,.btn,.selectlike,.icon-btn,.pill{transition:background .13s ease,color .13s ease,border-color .13s ease,box-shadow .13s ease,transform .13s ease;}
+.nav>div+div{margin-top:4px;}
+.navlabel{padding:12px 20px 5px;}
+.nav a.active{font-weight:600;box-shadow:0 1px 8px rgba(0,0,0,.12);}
+.nav a:not(.active):hover{transform:translateX(1px);}
+
+/* KPIs clicáveis: leve elevação no hover pra indicar que dá pra clicar */
+.grid-kpi a{display:block;border-radius:14px;}
+.grid-kpi a:hover .kpi{border-color:var(--border-strong);transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,.06),0 14px 34px rgba(0,0,0,.10);}
+.kpi{transition:border-color .13s ease,transform .13s ease,box-shadow .13s ease;}
+
+/* Títulos de seção fora do padrão .sec-title (h3 inline em várias páginas) */
+.sec-title h3{font-family:var(--display);letter-spacing:-0.01em;font-weight:680;}
+
+/* Cards: cabeçalho com um respiro melhor e hover discreto de borda */
+.card:hover{border-color:var(--border-strong);}
+.card-h h3{letter-spacing:-0.005em;}
+
+/* Tabela: linha do cabeçalho um tom acima e hover mais claro */
+thead th{background:color-mix(in srgb,var(--panel-2) 60%,transparent);}
+tbody tr{transition:background .1s ease;}
+
+/* Banner um pouco mais suave e legível */
+.banner{line-height:1.45;border-radius:12px;}
+.banner b{font-weight:680;}
