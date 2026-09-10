@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { fetchT } from "../fetch-timeout";
 // Integração com o Perspecta Juris (Render + Postgres) — cria escritório +
 // usuário admin de verdade via a API de master dele.
 // Env: JURIS_API_URL, JURIS_EMPRESA (nome do escritório master, ex.: "Perspecta Juris"),
@@ -24,12 +25,12 @@ function baseUrl(): string {
 async function jurisLogin(): Promise<{ token: string | null; erro?: string }> {
   const url = `${baseUrl()}/api/auth/login`;
   try {
-    const res = await fetch(url, {
+    const res = await fetchT(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ empresa: process.env.JURIS_EMPRESA, nome: process.env.JURIS_USER, senha: process.env.JURIS_PASS }),
       cache: "no-store",
-    });
+    }, 10000);
     const txt = await res.text();
     if (!res.ok) {
       let msg = ""; try { msg = JSON.parse(txt)?.message || ""; } catch { msg = txt.slice(0, 120); }
