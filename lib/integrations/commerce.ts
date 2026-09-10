@@ -140,7 +140,7 @@ async function _listarLojasCommerce(): Promise<{ nome: string; slug: string; cri
     return saida;
   } catch { return null; }
 }
-export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v3"], { revalidate: 60 });
+export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v4"], { revalidate: 180 });
 
 // Lista as contas (usuários Auth) do Commerce — para descobrir quem é o dono.
 export async function listarUsuariosCommerce(): Promise<{ email: string; criado: string }[] | null> {
@@ -167,4 +167,4 @@ async function _commerceStatus(): Promise<{ configurado: boolean; ok: boolean; e
     return { configurado: true, ok: false, erro: e?.message || "rede" };
   }
 }
-export const commerceStatus = unstable_cache(_commerceStatus, ["commerce-status-v1"], { revalidate: 60 });
+export const commerceStatus = unstable_cache(_commerceStatus, ["commerce-status-v2"], { revalidate: 300 });

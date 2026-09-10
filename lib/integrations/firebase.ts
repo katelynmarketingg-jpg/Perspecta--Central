@@ -66,7 +66,7 @@ async function readRootRaw(): Promise<any | null> {
 
 // Cacheado por 60s: lê o banco inteiro no máximo 1x por minuto (e nem carrega o
 // firebase-admin quando o cache está quente).
-const readRoot = unstable_cache(readRootRaw, ["firebase-rtdb-root"], { revalidate: 60 });
+const readRoot = unstable_cache(readRootRaw, ["firebase-rtdb-root-v2"], { revalidate: 180 });
 
 // Diagnóstico: conecta no Realtime Database e conta os nós de topo.
 export async function firebaseStatus(): Promise<{ configurado: boolean; ok: boolean; colecoes: number; erro?: string }> {

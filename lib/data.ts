@@ -85,7 +85,7 @@ async function _getSistemas(): Promise<Sistema[]> {
   );
 }
 
-export const getSistemas = unstable_cache(_getSistemas, ["sistemas-enriched-v2"], { revalidate: 60 });
+export const getSistemas = unstable_cache(_getSistemas, ["sistemas-enriched-v3"], { revalidate: 180 });
 
 // --- Empresas & pagamentos (derivados dos convites reais) -------------------
 // Enquanto não existe uma tabela de assinaturas totalmente ligada (central.empresas
@@ -118,7 +118,7 @@ async function _getEmpresas(): Promise<Empresa[]> {
       } as Empresa;
     });
 }
-export const getEmpresas = unstable_cache(_getEmpresas, ["empresas-de-convites"], { revalidate: 30 });
+export const getEmpresas = unstable_cache(_getEmpresas, ["empresas-de-convites-v2"], { revalidate: 120 });
 
 async function _getPagamentos(): Promise<Pagamento[]> {
   const { listarConvites } = await import("./convites");
@@ -135,7 +135,7 @@ async function _getPagamentos(): Promise<Pagamento[]> {
   }
   return out;
 }
-export const getPagamentos = unstable_cache(_getPagamentos, ["pagamentos-de-convites"], { revalidate: 30 });
+export const getPagamentos = unstable_cache(_getPagamentos, ["pagamentos-de-convites-v2"], { revalidate: 120 });
 
 // --- Custos (reais do banco + manuais cadastrados) --------------------------
 
@@ -151,7 +151,7 @@ async function _getCustos(): Promise<Custo[]> {
     source: (r.source || "manual") as Custo["source"],
   }));
 }
-export const getCustos = unstable_cache(_getCustos, ["custos-reais"], { revalidate: 60 });
+export const getCustos = unstable_cache(_getCustos, ["custos-reais-v2"], { revalidate: 180 });
 
 // Receita mensal (MRR) de um sistema a partir das assinaturas ativas.
 export function receitaSistema(empresas: Empresa[], sid: string): number {

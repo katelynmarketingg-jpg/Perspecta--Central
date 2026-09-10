@@ -78,7 +78,7 @@ async function fetchCreator(): Promise<{ rows: any[] | null; erro?: string }> {
 
 // Cache curto (15s): enquanto se ajusta as variáveis (CREATOR_ORG/USER/PASS) no
 // Vercel, o diagnóstico reflete a correção rápido, sem esperar um minuto.
-const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v3"], { revalidate: 15 });
+const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v4"], { revalidate: 300 });
 
 // Só as linhas (para a página de clientes).
 export async function getCreatorClients(): Promise<any[] | null> {
@@ -115,7 +115,7 @@ async function _creatorMe(): Promise<CreatorMe> {
     return { ok: false, superadmin: false, erro: e?.message || "rede" };
   }
 }
-export const creatorMe = unstable_cache(_creatorMe, ["creator-me-v1"], { revalidate: 15 });
+export const creatorMe = unstable_cache(_creatorMe, ["creator-me-v2"], { revalidate: 300 });
 
 // Lista os escritórios (contas de cliente) do Creator. Precisa de superadmin.
 async function _getCreatorOrgs(): Promise<{ orgs: any[] | null; erro?: string }> {
@@ -132,7 +132,7 @@ async function _getCreatorOrgs(): Promise<{ orgs: any[] | null; erro?: string }>
     return { orgs: null, erro: e?.message || "rede" };
   }
 }
-export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v1"], { revalidate: 15 });
+export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v2"], { revalidate: 180 });
 
 export type CreatorReceita = { mrr: number; previsto: number; pagantes: number; emTeste: number; expirados: number; total: number };
 
@@ -158,7 +158,7 @@ async function _getCreatorReceita(): Promise<{ receita: CreatorReceita | null; e
     return { receita: null, erro: e?.message || "rede" };
   }
 }
-export const getCreatorReceita = unstable_cache(_getCreatorReceita, ["creator-receita-v1"], { revalidate: 30 });
+export const getCreatorReceita = unstable_cache(_getCreatorReceita, ["creator-receita-v2"], { revalidate: 300 });
 
 export type NovoEscritorio = { nome: string; adminUsuario: string; adminSenha: string; adminNome?: string; whatsapp?: string };
 
