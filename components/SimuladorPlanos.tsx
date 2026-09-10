@@ -108,7 +108,7 @@ export default function SimuladorPlanos({ sistemas, cupons = [] }: { sistemas: S
         </div>
         <div style={{ marginTop: 8, fontSize: 11.5, color: "var(--faint)" }}>
           {fixoRateado > 0 && <>Inclui <b>{BRL(fixoRateado)}/empresa</b> de custos fixos rateados (ex.: Claude). </>}
-          Custo por GB real do provedor de cada sistema (Supabase, Render ou Firebase). <b>Markup</b> = lucro sobre o custo. Cálculo automático.
+          Custo por GB <b>estimado</b> pela tabela de preço do provedor de cada sistema (Supabase, Render ou Firebase) — planejamento, não a fatura exata. <b>Markup</b> = lucro sobre o custo. Cálculo automático.
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
