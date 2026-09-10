@@ -104,7 +104,7 @@ async function _listarEscritoriosJuris(): Promise<{ nome: string; plano: string;
     }));
   } catch { return null; }
 }
-export const listarEscritoriosJuris = unstable_cache(_listarEscritoriosJuris, ["juris-escritorios-v2"], { revalidate: 180 });
+export const listarEscritoriosJuris = unstable_cache(_listarEscritoriosJuris, ["juris-escritorios-v2"], { revalidate: 180, tags: ["acessos-dados"] });
 
 // Diagnóstico: conecta na API do Juris como master. Cacheado 60s (evita
 // refazer login no Render — lento em cold start — a cada carregamento).

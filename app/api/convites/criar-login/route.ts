@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getConvitePorToken, registrarLoginCriado } from "@/lib/convites";
 import { creatorConfigured, criarEscritorioCreator } from "@/lib/integrations/creator";
 import { jurisConfigured, criarEscritorioJuris } from "@/lib/integrations/juris";
@@ -56,5 +57,6 @@ export async function POST(req: Request) {
     await registrarLoginCriado(c.token, adminUsuario.trim());
   }
 
+  revalidateTag("acessos-dados"); // novo cliente aparece na hora nas listas
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarConvites, criarConvite, cancelarConvite } from "@/lib/convites";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
   const { sistemaId, planoId, empresaNome, email, whatsapp, trialDias } = body as Record<string, string>;
   const r = await criarConvite({ sistemaId, planoId, empresaNome, email, whatsapp: whatsapp || null, trialDias: trialDias ? Number(trialDias) : undefined });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível gerar o convite." }, { status: 400 });
+  revalidateTag("acessos-dados"); // convite novo aparece na hora
   return NextResponse.json({ ok: true, token: r.token });
 }
 
@@ -25,5 +27,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await cancelarConvite(id);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível cancelar." }, { status: 400 });
+  revalidateTag("acessos-dados");
   return NextResponse.json({ ok: true });
 }
