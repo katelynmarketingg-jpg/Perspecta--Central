@@ -1,7 +1,8 @@
 import { Card, Icon, Pill } from "@/components/ui";
 import { getGatilhos, type Gatilho } from "@/lib/gatilhos";
 import { getSistemas } from "@/lib/data";
-import { ultimoUsoPorEmpresa } from "@/lib/uso-consumo";
+import { ultimoUsoPorEmpresa, type UsoRegistro } from "@/lib/uso-consumo";
+import { jurisConfigured, listarEscritoriosJuris } from "@/lib/integrations/juris";
 import ConsumoPorAcesso from "@/components/ConsumoPorAcesso";
 
 export const dynamic = "force-dynamic";
@@ -16,8 +17,27 @@ const ROTULO: Record<string, string> = {
 };
 
 export default async function Consumos() {
-  const [gatilhos, sistemas, usoAcessos] = await Promise.all([getGatilhos(), getSistemas(), ultimoUsoPorEmpresa()]);
+  const [gatilhos, sistemas, usoAcessos, jurisEscritorios] = await Promise.all([
+    getGatilhos(), getSistemas(), ultimoUsoPorEmpresa(),
+    jurisConfigured() ? listarEscritoriosJuris() : Promise.resolve(null),
+  ]);
   const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
+
+  // Uso real por cliente vindo da API do próprio sistema (sem precisar do
+  // "uso.medido"): hoje o Juris já expõe usuários usados × limite do plano.
+  // Não duplica se o mesmo (sistema, empresa, métrica) já veio medido.
+  const jaTem = new Set(usoAcessos.map((u) => `${u.sistemaId}::${u.empresaRef}::${u.metrica}`));
+  const viaApi: UsoRegistro[] = [];
+  for (const e of jurisEscritorios || []) {
+    const key = `juris::${e.nome}::logins`;
+    if (jaTem.has(key)) continue;
+    viaApi.push({
+      id: key, sistemaId: "juris", empresaRef: e.nome, metrica: "logins",
+      valor: e.usuarios, limite: e.limiteUsuarios, plano: e.plano || null,
+      medidoEm: new Date().toISOString(),
+    });
+  }
+  const registros = [...usoAcessos, ...viaApi];
 
   return (
     <>
@@ -34,8 +54,8 @@ export default async function Consumos() {
         </div>
       </Card>
 
-      <Card title="Consumo por acesso" hint="quanto cada cliente usa do plano dele — dado que o próprio sistema mede e manda">
-        <ConsumoPorAcesso sistemas={sisSimples} registros={usoAcessos} />
+      <Card title="Consumo por cliente" hint="quanto cada cliente já usa do plano dele — ao vivo">
+        <ConsumoPorAcesso sistemas={sisSimples} registros={registros} />
       </Card>
     </>
   );
