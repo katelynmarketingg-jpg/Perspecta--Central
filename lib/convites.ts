@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Convite de primeiro acesso: o Central gera um link único pra um cliente novo.
@@ -77,13 +78,17 @@ function tok(): string {
   return (globalThis.crypto?.randomUUID?.() || `${Date.now()}${Math.random()}`).replace(/-/g, "");
 }
 
-export async function listarConvites(): Promise<Convite[]> {
+async function _listarConvites(): Promise<Convite[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
   const rows = await runSupabaseQuery(r, `select * from central.convites order by criado_em desc;`);
   return (rows || []).map(fromRow).map(comStatusDerivado);
 }
+// Cacheado 5 min: a lista de convites é lida em várias telas e cada consulta
+// à Management API custa ~1,5s. O keep-warm mantém quente; um convite novo
+// aparece em poucos minutos (ou recarregue depois de criar).
+export const listarConvites = unstable_cache(_listarConvites, ["convites-v1"], { revalidate: 300 });
 
 export async function getConvitePorToken(token: string): Promise<Convite | null> {
   const r = await ref();
