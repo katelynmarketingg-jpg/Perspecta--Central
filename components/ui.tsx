@@ -54,7 +54,7 @@ export function Card({ title, hint, action, children }:
           {action ? <span className="act">{action}</span> : null}
         </div>
       )}
-      {children}
+      <div className="cbody">{children}</div>
     </div>
   );
 }

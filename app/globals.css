@@ -231,3 +231,13 @@ tbody tr{transition:background .1s ease;}
 /* Banner um pouco mais suave e legível */
 .banner{line-height:1.45;border-radius:12px;}
 .banner b{font-weight:680;}
+
+/* Corpo do Card com o MESMO recuo lateral do cabeçalho (antes o conteúdo
+   colava na borda = "torto/saindo do balão"). Cards cujo conteúdo já cuida do
+   próprio espaçamento (.card-b) ou que têm tabela full-bleed (.tablewrap) não
+   recebem recuo dobrado. */
+.cbody{padding:6px 18px 18px;}
+.cbody:has(> .card-b){padding:0;}
+.cbody:has(> .tablewrap){padding-left:0;padding-right:0;}
+.cbody > .tablewrap:first-child{margin-top:2px;}
+.cbody:empty{display:none;}
