@@ -20,6 +20,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/api/convites/aceitar") ||
     pathname.startsWith("/api/convites/pagamento") ||
     pathname.startsWith("/api/convites/criar-login") ||
+    pathname.startsWith("/api/keep-warm") ||
     pathname.startsWith("/api/webhooks")
   ) {
     return NextResponse.next();
