@@ -68,6 +68,16 @@ export async function getGatilhos(): Promise<Gatilho[]> {
     pacote: "Vercel Pro", fonte: "vercel.com/pricing", conferido: CONFERIDO,
   });
 
+  // Cloudflare R2 — armazenamento das imagens. 10 GB grátis; depois US$ 0,015/GB/mês.
+  // Uso ainda não medido (precisa da conta/API do R2 pra ler os bytes).
+  out.push({
+    servico: "Cloudflare R2 — imagens",
+    usadoMb: null, limiteMb: 10 * GB, estado: "medir",
+    mensagem: "10 GB grátis. Uso ainda não medido; acima disso ~US$ 0,015/GB/mês (sem taxa de egress).",
+    aoPassar: "R2 pago por uso (~US$ 0,015/GB/mês)", custoAtualBrl: 0, custoPrevistoBrl: usd(0.015),
+    pacote: "R2 (uso)", fonte: "cloudflare.com/r2/pricing", conferido: CONFERIDO,
+  });
+
   // Render — já é pago por serviço (Creator + Juris): atual = previsto.
   const rc = (renderRes as any).custos as { totalUsd: number | null }[] | null;
   if (rc) {
