@@ -204,7 +204,7 @@ async function _getContagemContas(ref: string): Promise<{
   ]);
   return { juris, commerce, jurisTabela: jr?.tabela, commerceTabela: cm?.tabela, candidatas };
 }
-export const getContagemContas = unstable_cache(_getContagemContas, ["sb-contas-v1"], { revalidate: 60 });
+export const getContagemContas = unstable_cache(_getContagemContas, ["sb-contas-v2"], { revalidate: 180 });
 
 // Melhor tabela de "empresas/tenants" de um schema.
 async function melhorTabela(ref: string, schema: string): Promise<string | null> {
@@ -234,11 +234,11 @@ async function _getContasRows(ref: string): Promise<{ commerce: any[]; juris: an
   const [juris, commerce] = await Promise.all([rows("public", jt), rows("commerce", ct)]);
   return { commerce, juris };
 }
-export const getContasRows = unstable_cache(_getContasRows, ["sb-contas-rows-v2"], { revalidate: 60 });
+export const getContasRows = unstable_cache(_getContasRows, ["sb-contas-rows-v3"], { revalidate: 180 });
 
 // Versões cacheadas (60s): evitam refazer as consultas pesadas a cada acesso.
-export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables"], { revalidate: 60 });
-export const supabaseStatus = unstable_cache(_supabaseStatus, ["sb-status"], { revalidate: 60 });
-export const getClientRows = unstable_cache(_getClientRows, ["sb-client-rows"], { revalidate: 60 });
-export const listSupabaseTables = unstable_cache(_listSupabaseTables, ["sb-list-tables"], { revalidate: 60 });
+export const findKeyTables = unstable_cache(_findKeyTables, ["sb-find-key-tables-v2"], { revalidate: 180 });
+export const supabaseStatus = unstable_cache(_supabaseStatus, ["sb-status-v2"], { revalidate: 180 });
+export const getClientRows = unstable_cache(_getClientRows, ["sb-client-rows-v2"], { revalidate: 180 });
+export const listSupabaseTables = unstable_cache(_listSupabaseTables, ["sb-list-tables-v2"], { revalidate: 180 });
 export const getProjectDbSizeMb = unstable_cache(_getProjectDbSizeMb, ["sb-db-size"], { revalidate: 300 });

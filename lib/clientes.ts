@@ -81,7 +81,7 @@ async function _getClientesUnificados(): Promise<Cli[]> {
   return clientes;
 }
 
-export const getClientesUnificados = unstable_cache(_getClientesUnificados, ["clientes-unificados-v2"], { revalidate: 30 });
+export const getClientesUnificados = unstable_cache(_getClientesUnificados, ["clientes-unificados-v3"], { revalidate: 180 });
 
 export async function getContagemPorSistema(): Promise<Record<string, number>> {
   const clientes = await getClientesUnificados();
