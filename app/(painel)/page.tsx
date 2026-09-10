@@ -1,4 +1,4 @@
-import { Card, Kpi, Pill, Icon } from "@/components/ui";
+import { Card, Kpi, Pill, Icon, Fonte } from "@/components/ui";
 import { getSistemas } from "@/lib/data";
 import { getCreatorReceita, creatorStatus } from "@/lib/integrations/creator";
 import { supabaseConfigured } from "@/lib/integrations/supabase";
@@ -69,10 +69,10 @@ export default async function Dashboard() {
       </div>
 
       <div className="grid-kpi">
-        <a href="/sistemas" style={{ textDecoration: "none" }}><Kpi icon='<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' k="Contas (empresas)" v={totalContas} /></a>
-        <a href="/acessos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' k="Receita / mês" v={BRL(mrr)} /></a>
-        <a href="/consumos" style={{ textDecoration: "none" }}><Kpi icon='<line x1="5" y1="12" x2="19" y2="12"/>' k="Custo de infra / mês" v={custoInfra > 0 ? BRL(custoInfra) : "grátis"} /></a>
-        <a href="/custos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M3 3v18h18"/><path d="M7 12l3 3 7-8"/>' k="Lucro / mês" v={BRL(lucro)} /></a>
+        <a href="/sistemas" style={{ textDecoration: "none" }}><Kpi icon='<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>' k="Contas (empresas)" v={totalContas} tag={<Fonte tipo="vivo" />} /></a>
+        <a href="/acessos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>' k="Receita / mês" v={BRL(mrr)} tag={<Fonte tipo="vivo" />} /></a>
+        <a href="/consumos" style={{ textDecoration: "none" }}><Kpi icon='<line x1="5" y1="12" x2="19" y2="12"/>' k="Custo de infra / mês" v={custoInfra > 0 ? BRL(custoInfra) : "grátis"} tag={<Fonte tipo="vivo" />} /></a>
+        <a href="/custos" style={{ textDecoration: "none" }}><Kpi icon='<path d="M3 3v18h18"/><path d="M7 12l3 3 7-8"/>' k="Lucro / mês" v={BRL(lucro)} tag={<Fonte tipo="misto" />} /></a>
         <a href="/acessos" style={{ textDecoration: "none" }}><Kpi icon='<circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 2"/>' k="Convites precisando de você" v={precisaAtencao.length} delta={precisaAtencao.length > 0 ? "resolver agora" : "tudo em dia"} dir={precisaAtencao.length > 0 ? "down" : "flat"} /></a>
       </div>
 
