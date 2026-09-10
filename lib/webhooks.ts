@@ -13,9 +13,14 @@ async function ref(): Promise<string | null> {
 }
 
 export async function getWebhookSecret(sistemaId: string): Promise<string | null> {
+  const sid = sistemaId.replace(/[^a-z0-9_-]/gi, "");
+  // Atalho: dá pra configurar o segredo só por variável no Vercel — ex.
+  // WEBHOOK_SECRET_JURIS — sem precisar escrever no banco. Cai pro banco se
+  // a variável não existir.
+  const envSecret = process.env[`WEBHOOK_SECRET_${sid.toUpperCase()}`];
+  if (envSecret) return envSecret;
   const r = await ref();
   if (!r) return null;
-  const sid = sistemaId.replace(/[^a-z0-9_-]/gi, "");
   const rows = await runSupabaseQuery(r, `select webhook_secret from central.sistemas where id = '${sid}';`);
   return rows?.[0]?.webhook_secret || null;
 }
