@@ -20,7 +20,7 @@ export default async function Clientes() {
 
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>As <b>empresas que usam cada sistema</b> (suas clientes): tenants do Supabase, estabelecimentos do Bistro e escritórios do Creator. O Creator mostra todos quando conectar a conta master; o Hub entra quando plugarmos o banco dele.</span>
+        <span>Sua <b>carteira de clientes</b> — quem são as empresas, contato, valor e situação, lido ao vivo de cada sistema. Para <b>criar acesso</b> ou ver <b>logins</b>, vá em <a href="/acessos" style={{ color: "var(--accent)", fontWeight: 600 }}>Acessos →</a>.</span>
       </div>
 
       {clientes.length === 0 ? (

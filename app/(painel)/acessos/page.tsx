@@ -124,8 +124,8 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
       </div>
       <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
 
-      <Card title="Empresas por sistema" hint={`${empresas.length} no total · lidas ao vivo`}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+      <Card title="Contas por sistema" hint={`${empresas.length} no total · lidas ao vivo · clique pra filtrar`}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {filtro && (
             <a href="/acessos" style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 999, padding: "5px 12px", fontSize: 12.5, textDecoration: "none", color: "var(--text)" }}>
               ← Todos
@@ -144,26 +144,9 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
             );
           })}
         </div>
-        {empresas.length === 0 ? (
-          <div style={{ color: "var(--muted)", fontSize: 13.5 }}>
-            Nenhuma empresa listada ainda. {!me.superadmin && "No Creator, conecte a conta master para ver todos os escritórios."}
-          </div>
-        ) : (
-          <div className="tablewrap">
-            <table>
-              <thead><tr><th>Empresa</th><th>Sistema</th><th>Logins</th></tr></thead>
-              <tbody>
-                {empresas.map((e, i) => (
-                  <tr key={i}>
-                    <td style={{ fontWeight: 600 }}>{e.nome}</td>
-                    <td><span className="sys-tag"><span className="sd" style={{ background: e.cor }} />{e.sistema}</span></td>
-                    <td>{e.gerenciavel ? <Pill s="ativo" label="gerenciar abaixo" /> : (e.sistemaId === "commerce" || e.sistemaId === "juris") ? <Pill s="ativo" label="criar abaixo" /> : <Pill s="muted" label="em breve" />}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div style={{ marginTop: 12, fontSize: 12.5, color: "var(--muted)" }}>
+          A lista completa das empresas (contato, plano, valor, status) fica em <a href="/clientes" style={{ color: "var(--accent)", fontWeight: 600 }}>Clientes →</a>. Aqui é a <b>operação</b>: criar acesso e ver os logins.
+        </div>
       </Card>
 
       <Card title="Lista de acessos" hint="todo login, de quem já manda o evento — sucesso e falha">
