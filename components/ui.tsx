@@ -8,18 +8,27 @@ export function Icon({ path, size = 18 }: { path: string; size?: number }) {
   );
 }
 
-export function Kpi({ icon, k, v, delta, dir = "flat" }:
-  { icon?: string; k: string; v: React.ReactNode; delta?: string; dir?: "up" | "down" | "flat" }) {
+export function Kpi({ icon, k, v, delta, dir = "flat", tag }:
+  { icon?: string; k: string; v: React.ReactNode; delta?: string; dir?: "up" | "down" | "flat"; tag?: React.ReactNode }) {
   return (
     <div className="card kpi">
       {icon ? <div className="ic"><Icon path={icon} size={20} /></div> : null}
-      <div>
+      <div style={{ minWidth: 0 }}>
         <div className="k">{k}</div>
         <div className="v num">{v}</div>
         {delta ? <div className={"delta " + dir}>{delta}</div> : null}
+        {tag ? <div style={{ marginTop: 6 }}>{tag}</div> : null}
       </div>
     </div>
   );
+}
+
+// Selinho de fonte do dado: "ao vivo" (medido de verdade) vs "estimativa"
+// (tabela de preço/hipótese). Deixa claro o que é real na tela.
+export function Fonte({ tipo }: { tipo: "vivo" | "estimativa" | "misto" }) {
+  const map = { vivo: { c: "live", t: "ao vivo" }, estimativa: { c: "est", t: "estimativa" }, misto: { c: "manual", t: "medido + seus custos" } } as const;
+  const f = map[tipo];
+  return <span className={"tag-src " + f.c}>{f.t}</span>;
 }
 
 const PILL_CLASS: Record<string, string> = {
