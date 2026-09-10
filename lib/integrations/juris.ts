@@ -82,7 +82,7 @@ export async function criarEscritorioJuris(input: NovoEscritorioJuris): Promise<
 
 // Lista os escritórios (tenants) já cadastrados no Juris — os acessos que já
 // existem. GET /api/master/companies com o token master. Cacheado 60s.
-async function _listarEscritoriosJuris(): Promise<{ nome: string; plano: string; usuarios: number; clientes: number }[] | null> {
+async function _listarEscritoriosJuris(): Promise<{ nome: string; plano: string; usuarios: number; limiteUsuarios: number | null; clientes: number }[] | null> {
   if (!jurisConfigured()) return null;
   const { token } = await jurisLogin();
   if (!token) return null;
@@ -98,6 +98,8 @@ async function _listarEscritoriosJuris(): Promise<{ nome: string; plano: string;
       nome: String(t.name || t.nome || "—"),
       plano: String(t.plan || t.plano || ""),
       usuarios: Number(t.usersCount ?? t.usuarios ?? 0) || 0,
+      // maxUsers vem do plano; null = ilimitado.
+      limiteUsuarios: t.maxUsers != null ? Number(t.maxUsers) : null,
       clientes: Number(t.clientsCount ?? t.clientes ?? 0) || 0,
     }));
   } catch { return null; }
