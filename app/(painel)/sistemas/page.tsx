@@ -1,4 +1,5 @@
-import { Card, Pill, SourceTag, Icon } from "@/components/ui";
+import { Icon } from "@/components/ui";
+import SistemaCard, { type SistemaCardData } from "@/components/SistemaCard";
 import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus, firebaseConfigured, getContagemContasBistro } from "@/lib/integrations/firebase";
@@ -86,53 +87,27 @@ export default async function Infra() {
           const status = creatorLive || bistroLive ? "operacional" : s.status;
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
-          // "Contas" = empresas que pagam/usam o sistema (fontes reais por sistema).
           const contas: number | null = contasPorSistema[s.id] ?? null;
           const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(empresas, s.id);
-          const openBugs = s.bugs.filter((b) => b.st !== "resolvido").length;
           const banco = bancoDe(s.banco, s.supabaseRef);
           const custo = custoInfra(s.host, true, s.host === "Render" ? renderCustoDoSistema(s.url) : null);
-          return (
-            <div className="card sys-card" key={s.id}>
-              <div className="sys-top">
-                <div className="sys-logo" style={{ background: `linear-gradient(135deg,${s.cor},${s.cor}cc)` }}>{nomeCurto(s.nome)[0]}</div>
-                <div style={{ flex: 1 }}>
-                  <div className="sys-name">{s.nome}</div>
-                  <a href={`https://${s.url}`} target="_blank" rel="noreferrer" className="sys-url" style={{ textDecoration: "underline", textUnderlineOffset: 2 }}>{s.url} ↗</a>
-                </div>
-                <span className="health-dot" style={{ background: dotColor(s.status) }} />
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <Pill s={status} /><SourceTag source={source} />
-              </div>
-
-              <div className="sys-stats" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
-                <div className="sys-stat"><div className="n num">{contas == null ? "—" : contas}</div><div className="l">Empresas</div></div>
-                <div className="sys-stat"><div className="n num">{BRL(mrr)}</div><div className="l">Receita / mês</div></div>
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "var(--muted)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Hospedagem</span><b style={{ color: "var(--text)" }}>{s.host}{manual ? " (manual)" : creatorLive ? " (API)" : ""}</b></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Repositório</span><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.repo}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Supabase</span><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.supabaseRef || "—"}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Último deploy</span><span>{s.ultimoDeploy ? `${s.ultimoDeploy.estado} · ${s.ultimoDeploy.quando}` : "sem dados"}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Banco de dados</span><span style={{ color: banco.cor, fontWeight: 600 }}>{banco.nome}</span></div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}><span>Custo infra / mês</span><span className="num" style={{ fontWeight: 650, color: custo.valor === null ? "var(--warn)" : custo.valor === 0 ? "var(--good)" : "var(--text)" }}>{custo.valor === null ? "a confirmar" : custo.valor === 0 ? "grátis" : BRL(custo.valor)}</span></div>
-              </div>
-
-              {openBugs > 0 && (
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {s.bugs.filter((b) => b.st !== "resolvido").map((b, i) => (
-                    <div key={i} style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 12.5 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: "50%", marginTop: 5, flex: "none", background: b.sev === "alta" ? "var(--crit)" : b.sev === "media" ? "var(--warn)" : "var(--info)" }} />
-                      <div><div style={{ color: "var(--text)", fontWeight: 600 }}>{b.t}</div><div style={{ color: "var(--faint)" }}>{b.d} · {b.st}</div></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
+          const custoValor = custo.valor; // null = a confirmar
+          const lucroValor = custoValor == null ? null : mrr - custoValor;
+          const data: SistemaCardData = {
+            id: s.id, cor: s.cor, inicial: nomeCurto(s.nome)[0] || "?", nome: s.nome, url: s.url,
+            statusDot: dotColor(status), statusPill: status, source,
+            contas, mrrText: BRL(mrr),
+            hostLabel: `${s.host}${manual ? " (manual)" : creatorLive ? " (API)" : ""}`,
+            repo: s.repo, supabaseRef: s.supabaseRef,
+            ultimoDeploy: s.ultimoDeploy ? `${s.ultimoDeploy.estado} · ${s.ultimoDeploy.quando}` : null,
+            bancoNome: banco.nome, bancoCor: banco.cor,
+            custoText: custoValor === null ? "a confirmar" : custoValor === 0 ? "grátis" : BRL(custoValor),
+            custoCor: custoValor === null ? "var(--warn)" : custoValor === 0 ? "var(--good)" : "var(--text)",
+            lucroText: lucroValor === null ? "a confirmar" : BRL(lucroValor),
+            lucroCor: lucroValor === null ? "var(--warn)" : lucroValor > 0 ? "var(--good)" : lucroValor < 0 ? "var(--crit)" : "var(--muted)",
+            bugs: s.bugs.filter((b) => b.st !== "resolvido"),
+          };
+          return <SistemaCard key={s.id} {...data} />;
         })}
       </div>
     </>
