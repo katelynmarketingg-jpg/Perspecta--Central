@@ -3,7 +3,6 @@ import CustosManuais from "@/components/CustosManuais";
 import SimuladorPlanos from "@/components/SimuladorPlanos";
 import PlanosSalvos from "@/components/PlanosSalvos";
 import Cupons from "@/components/Cupons";
-import { CustoChart } from "@/components/CustoChart";
 import { getResumoCusto } from "@/lib/gatilhos";
 import { listarCustosManuais } from "@/lib/custos-manuais";
 import { getSistemas } from "@/lib/data";
@@ -79,9 +78,6 @@ export default async function CustosEPlanos() {
       <Cupons cupons={cupons} />
 
       <Card title="Custo por serviço — hoje × previsto" hint="quando o grátis acabar, entra o pacote pago">
-        <div className="card-b">
-          <CustoChart itens={itens.map((g) => ({ servico: g.servico, hoje: g.custoAtualBrl, previsto: g.custoPrevistoBrl }))} />
-        </div>
         <div className="tablewrap">
           <table>
             <thead>
