@@ -1,5 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { getSistemas } from "./data";
+import { supabaseConfigured } from "./integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "./integrations/firebase";
 import { creatorConfigured, getCreatorOrgs, creatorMe } from "./integrations/creator";
 import { commerceConfigured, listarLojasCommerce } from "./integrations/commerce";
