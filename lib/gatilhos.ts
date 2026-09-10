@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { supabaseConfigured, getProjectDbSizeMb } from "./integrations/supabase";
 import { firebaseConfigured, getFirebaseSizeMb } from "./integrations/firebase";
 import { renderConfigured, getRenderCustos } from "./integrations/render";
@@ -26,7 +27,7 @@ export type Gatilho = {
 
 const CONFERIDO = "2026-08-28";
 
-export async function getGatilhos(): Promise<Gatilho[]> {
+async function _getGatilhos(): Promise<Gatilho[]> {
   let supaRef: string | null = null;
   if (supabaseConfigured()) {
     const sistemas = await (await import("./data")).getSistemas();
@@ -94,9 +95,12 @@ export async function getGatilhos(): Promise<Gatilho[]> {
   return out;
 }
 
+// Cacheado 5 min (cada leitura toca a Management API/Render/Firebase e é lenta).
+export const getGatilhos = unstable_cache(_getGatilhos, ["gatilhos-v1"], { revalidate: 300 });
+
 // Resumo: quanto você paga HOJE e quanto vai pagar quando todos os pacotes
 // pagos entrarem (todo o grátis esgotado). Inclui os custos manuais.
-export async function getResumoCusto(): Promise<{ atualBrl: number; previstoBrl: number; itens: Gatilho[]; manualBrl: number }> {
+async function _getResumoCusto(): Promise<{ atualBrl: number; previstoBrl: number; itens: Gatilho[]; manualBrl: number }> {
   const { listarCustosManuais } = await import("./custos-manuais");
   const [itens, manuais] = await Promise.all([getGatilhos(), listarCustosManuais()]);
   const manualBrl = manuais.reduce((a, c) => a + c.valorBrl, 0);
@@ -104,6 +108,7 @@ export async function getResumoCusto(): Promise<{ atualBrl: number; previstoBrl:
   const previstoBrl = itens.reduce((a, g) => a + g.custoPrevistoBrl, 0) + manualBrl;
   return { atualBrl, previstoBrl, itens, manualBrl };
 }
+export const getResumoCusto = unstable_cache(_getResumoCusto, ["resumo-custo-v1"], { revalidate: 300 });
 
 function brl(n: number) { return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 
