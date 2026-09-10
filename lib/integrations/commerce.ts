@@ -140,7 +140,7 @@ async function _listarLojasCommerce(): Promise<{ nome: string; slug: string; cri
     return saida;
   } catch { return null; }
 }
-export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v4"], { revalidate: 180 });
+export const listarLojasCommerce = unstable_cache(_listarLojasCommerce, ["commerce-lojas-v4"], { revalidate: 180, tags: ["acessos-dados"] });
 
 // Lista as contas (usuários Auth) do Commerce — para descobrir quem é o dono.
 export async function listarUsuariosCommerce(): Promise<{ email: string; criado: string }[] | null> {

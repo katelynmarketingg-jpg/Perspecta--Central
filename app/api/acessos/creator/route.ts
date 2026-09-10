@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { criarEscritorioCreator, acaoEscritorioCreator, type AcaoEscritorio } from "@/lib/integrations/creator";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   const { nome, adminUsuario, adminSenha, adminNome, whatsapp } = body as Record<string, string>;
   const r = await criarEscritorioCreator({ nome, adminUsuario, adminSenha, adminNome, whatsapp });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // novo escritório aparece na hora nas listas
   return NextResponse.json({ ok: true, id: r.id });
 }
 
@@ -27,5 +29,6 @@ export async function PATCH(req: Request) {
 
   const r = await acaoEscritorioCreator(acao, Number(id), dias ? Number(dias) : undefined);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível concluir a ação." }, { status: 400 });
+  revalidateTag("acessos-dados"); // ativar/desativar/excluir reflete na hora
   return NextResponse.json({ ok: true });
 }

@@ -79,7 +79,7 @@ async function fetchCreator(): Promise<{ rows: any[] | null; erro?: string }> {
 
 // Cache curto (15s): enquanto se ajusta as variáveis (CREATOR_ORG/USER/PASS) no
 // Vercel, o diagnóstico reflete a correção rápido, sem esperar um minuto.
-const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v4"], { revalidate: 300 });
+const _getCreator = unstable_cache(fetchCreator, ["creator-clients-v4"], { revalidate: 300, tags: ["acessos-dados"] });
 
 // Só as linhas (para a página de clientes).
 export async function getCreatorClients(): Promise<any[] | null> {
@@ -133,7 +133,7 @@ async function _getCreatorOrgs(): Promise<{ orgs: any[] | null; erro?: string }>
     return { orgs: null, erro: e?.message || "rede" };
   }
 }
-export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v2"], { revalidate: 180 });
+export const getCreatorOrgs = unstable_cache(_getCreatorOrgs, ["creator-orgs-v2"], { revalidate: 180, tags: ["acessos-dados"] });
 
 export type CreatorReceita = { mrr: number; previsto: number; pagantes: number; emTeste: number; expirados: number; total: number };
 

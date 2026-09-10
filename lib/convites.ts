@@ -88,7 +88,7 @@ async function _listarConvites(): Promise<Convite[]> {
 // Cacheado 5 min: a lista de convites é lida em várias telas e cada consulta
 // à Management API custa ~1,5s. O keep-warm mantém quente; um convite novo
 // aparece em poucos minutos (ou recarregue depois de criar).
-export const listarConvites = unstable_cache(_listarConvites, ["convites-v1"], { revalidate: 300 });
+export const listarConvites = unstable_cache(_listarConvites, ["convites-v1"], { revalidate: 300, tags: ["acessos-dados"] });
 
 export async function getConvitePorToken(token: string): Promise<Convite | null> {
   const r = await ref();

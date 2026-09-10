@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { criarLojaCommerce } from "@/lib/integrations/commerce";
 
 export const dynamic = "force-dynamic";
@@ -14,5 +15,6 @@ export async function POST(req: Request) {
   const { nomeLoja, adminUsuario, senha } = body as Record<string, string>;
   const r = await criarLojaCommerce({ nomeLoja, adminUsuario, senha });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // novo acesso aparece na hora nas listas
   return NextResponse.json({ ok: true });
 }
