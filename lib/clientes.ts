@@ -1,8 +1,9 @@
 import { unstable_cache } from "next/cache";
 import { getSistemas } from "./data";
-import { supabaseConfigured, getContasRows } from "./integrations/supabase";
 import { firebaseConfigured, getBistroEstabelecimentos } from "./integrations/firebase";
 import { creatorConfigured, getCreatorOrgs, creatorMe } from "./integrations/creator";
+import { commerceConfigured, listarLojasCommerce } from "./integrations/commerce";
+import { jurisConfigured, listarEscritoriosJuris } from "./integrations/juris";
 import { nomeCurto } from "./format";
 
 // Leitura unificada das EMPRESAS que usam cada sistema (os clientes da
@@ -48,12 +49,12 @@ function normaliza(row: Record<string, any>, sistema: string, sistemaId: string,
 
 async function _getClientesUnificados(): Promise<Cli[]> {
   const sistemas = await getSistemas();
-  const ref = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
 
-  const [contas, bistroEst, orgsRes, me] = await Promise.all([
-    ref && supabaseConfigured() ? getContasRows(ref) : Promise.resolve({ commerce: [], juris: [] }),
+  const [lojasCommerce, escritoriosJuris, bistroEst, orgsRes, me] = await Promise.all([
+    commerceConfigured() ? listarLojasCommerce() : Promise.resolve(null),
+    jurisConfigured() ? listarEscritoriosJuris() : Promise.resolve(null),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null }),
     creatorConfigured() ? creatorMe() : Promise.resolve(null),
@@ -61,9 +62,11 @@ async function _getClientesUnificados(): Promise<Cli[]> {
 
   const clientes: Cli[] = [];
 
-  // Commerce (schema commerce) e Juris (schema public)
-  for (const r of contas.commerce || []) clientes.push(normaliza(r, nomeDe("commerce"), "commerce", corDe("commerce"), "commerce-tenant"));
-  for (const r of contas.juris || []) clientes.push(normaliza(r, nomeDe("juris"), "juris", corDe("juris"), "juris-tenant"));
+  // Commerce: contas de acesso reais (Supabase Auth do projeto do Commerce).
+  // Juris: escritórios via API master (Render). Cada um da SUA fonte — não do
+  // Management API do schema compartilhado (que mistura Juris/Commerce).
+  for (const c of lojasCommerce || []) clientes.push(normaliza({ created_at: c.criado }, nomeDe("commerce"), "commerce", corDe("commerce"), "commerce-conta", c.nome));
+  for (const j of escritoriosJuris || []) clientes.push(normaliza(j as any, nomeDe("juris"), "juris", corDe("juris"), "juris-escritorio", j.nome));
 
   // Bistro: estabelecimentos
   for (const e of bistroEst || []) clientes.push(normaliza(e.dados, nomeDe("bistro"), "bistro", corDe("bistro"), "bistro-estabelecimento", e.nome));
