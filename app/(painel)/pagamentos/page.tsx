@@ -1,16 +1,49 @@
 import { Card, Kpi, Pill, Icon } from "@/components/ui";
-import { getSistemas, getEmpresas, getPagamentos, empById, sysById } from "@/lib/data";
+import { getSistemas, getEmpresas, getPagamentos, empById, sysById, planById } from "@/lib/data";
 import { getProvedorAtivo } from "@/lib/integrations/payments";
 import { listarDespesas, situacaoDespesa } from "@/lib/despesas";
+import { listarConvites } from "@/lib/convites";
 import DespesasView from "@/components/Despesas";
 import { BRL, initials, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function Pagamentos() {
-  const [sistemas, empresas, pagamentos, provedor, despesas] = await Promise.all([
-    getSistemas(), getEmpresas(), getPagamentos(), getProvedorAtivo(), listarDespesas(),
+  const [sistemas, empresas, pagamentos, provedor, despesas, convites] = await Promise.all([
+    getSistemas(), getEmpresas(), getPagamentos(), getProvedorAtivo(), listarDespesas(), listarConvites(),
   ]);
+
+  // Cobrança por cliente, a partir dos convites reais (situação, teste, carência,
+  // forma e dia de cobrança). Forma/dia só ficam certos depois que o cliente paga.
+  const corSis = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
+  const nomeSis = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
+  const diaDoMes = (iso: string | null) => (iso ? new Date(iso).getDate() : null);
+  const dataCurta = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—");
+  const CARENCIA = 7;
+  const cobrancaClientes = convites.map((c) => {
+    const valor = planById(c.planoId)?.valor || 0;
+    let situacao = { label: "convite pendente", s: "muted" };
+    let forma = "—", diaCobranca = "—", fimTeste = "—", carencia = "—";
+    if (c.status === "trial") {
+      situacao = { label: "em teste", s: "warn" };
+      forma = "no teste (sem cobrança)";
+      fimTeste = dataCurta(c.trialAte);
+      const d = diaDoMes(c.trialAte); diaCobranca = d ? `1ª cobrança dia ${d}` : "—";
+    } else if (c.status === "ativo") {
+      situacao = { label: "pagando", s: "ativo" };
+      forma = "Cartão (Mercado Pago)";
+      const d = diaDoMes(c.ativadoEm) || diaDoMes(c.trialAte); diaCobranca = d ? `todo dia ${d}` : "—";
+    } else if (c.status === "aguardando_pagamento") {
+      situacao = { label: "aguardando pagamento", s: "inad" };
+      forma = "aguardando cartão";
+      const rest = c.trialAte ? Math.max(0, CARENCIA - Math.round((Date.now() - new Date(c.trialAte).getTime()) / 86400000)) : null;
+      carencia = rest != null ? `${rest} de ${CARENCIA} dias` : "—";
+      fimTeste = dataCurta(c.trialAte);
+    } else if (c.status === "cancelado") {
+      situacao = { label: "cancelado", s: "canc" };
+    }
+    return { id: c.id, empresa: c.empresaNome, sistemaId: c.sistemaId, valor, situacao, forma, diaCobranca, fimTeste, carencia };
+  });
   const falhas = pagamentos.filter((p) => p.status === "falhou" || p.status === "vencido");
   const recebido = pagamentos.filter((p) => p.status === "pago").reduce((a, p) => a + p.valor, 0);
   const aReceber = pagamentos.filter((p) => p.status !== "pago").reduce((a, p) => a + p.valor, 0);
@@ -31,6 +64,32 @@ export default async function Pagamentos() {
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
         <span>Cobrança recorrente por <b>{provedor.nome}</b> (o Central nunca guarda o número do cartão). Carência padrão <b>7 dias</b> após falha; ao esgotar, o acesso do tenant é bloqueado automaticamente. Troque o provedor em <b>Configurações</b>.</span>
       </div>
+
+      <Card title="Cobrança por cliente" hint={`${cobrancaClientes.length} cliente(s) · forma, dia, teste e carência`}>
+        {cobrancaClientes.length === 0 ? (
+          <div style={{ color: "var(--muted)", fontSize: 13.5 }}>Nenhum cliente com cobrança ainda — os clientes aparecem aqui ao criar o convite de primeiro acesso (aba Acessos).</div>
+        ) : (
+          <div className="tablewrap">
+            <table>
+              <thead><tr><th>Cliente</th><th>Sistema</th><th>Situação</th><th>Forma de pagamento</th><th>Dia de cobrança</th><th className="r">Valor/mês</th><th>Fim do teste</th><th>Carência</th></tr></thead>
+              <tbody>
+                {cobrancaClientes.map((c) => (
+                  <tr key={c.id}>
+                    <td><div className="co"><div className="ci">{initials(c.empresa)}</div><div className="cn">{c.empresa}</div></div></td>
+                    <td><span className="sys-tag"><span className="sd" style={{ background: corSis(c.sistemaId) }} />{nomeSis(c.sistemaId)}</span></td>
+                    <td><Pill s={c.situacao.s} label={c.situacao.label} /></td>
+                    <td style={{ color: "var(--muted)", fontSize: 12.5 }}>{c.forma}</td>
+                    <td className="num" style={{ fontSize: 12.5 }}>{c.diaCobranca}</td>
+                    <td className="r num">{c.valor > 0 ? BRL(c.valor) : "—"}</td>
+                    <td className="num" style={{ fontSize: 12.5 }}>{c.fimTeste}</td>
+                    <td className="num" style={{ fontSize: 12.5, color: c.carencia !== "—" ? "var(--warn)" : "var(--faint)" }}>{c.carencia}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <Card title="Pagamentos que não entraram" hint="exigem sua ação — com motivo e carência">
         {falhas.length === 0 ? (
