@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Cupons de desconto da Perspecta (ex.: −R$100, ou −20%). Salvos no schema
@@ -25,7 +26,7 @@ async function ensure(r: string) {
     );`);
 }
 
-export async function listarCupons(): Promise<Cupom[]> {
+async function _listarCupons(): Promise<Cupom[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
@@ -63,3 +64,5 @@ export function aplicarCupom(preco: number, cupom?: Cupom | null): number {
   const p = cupom.tipo === "percent" ? preco * (1 - cupom.valor / 100) : preco - cupom.valor;
   return Math.max(0, Math.round(p * 100) / 100);
 }
+
+export const listarCupons = unstable_cache(_listarCupons, ["cupons-lista"], { revalidate: 300, tags: ["acessos-dados"] });

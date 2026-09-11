@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Consumo real de cada cliente frente ao plano dele — alimentado pelos
@@ -51,7 +52,7 @@ function linha(x: any): UsoRegistro {
 
 // A leitura mais recente de cada (sistema, empresa, métrica) — "o que cada
 // acesso está usando agora".
-export async function ultimoUsoPorEmpresa(): Promise<UsoRegistro[]> {
+async function _ultimoUsoPorEmpresa(): Promise<UsoRegistro[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
@@ -79,3 +80,5 @@ export async function historicoUso(sistemaId: string, empresaRef: string, metric
   );
   return (rows || []).map(linha).reverse();
 }
+
+export const ultimoUsoPorEmpresa = unstable_cache(_ultimoUsoPorEmpresa, ["uso-ultimo"], { revalidate: 120, tags: ["acessos-dados"] });
