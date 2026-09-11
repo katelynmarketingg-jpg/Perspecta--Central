@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Custos que a Perspecta adiciona à mão (ex.: uma ferramenta, um domínio),
@@ -24,7 +25,7 @@ async function ensure(r: string) {
     );`);
 }
 
-export async function listarCustosManuais(): Promise<CustoManual[]> {
+async function _listarCustosManuais(): Promise<CustoManual[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
@@ -66,3 +67,5 @@ export async function removerCustoManual(id: string): Promise<{ ok: boolean }> {
   const res = await runSupabaseQuery(r, `delete from central.custos_manuais where id = '${idSafe}';`);
   return { ok: res !== null };
 }
+
+export const listarCustosManuais = unstable_cache(_listarCustosManuais, ["custos-manuais-lista"], { revalidate: 300, tags: ["acessos-dados"] });

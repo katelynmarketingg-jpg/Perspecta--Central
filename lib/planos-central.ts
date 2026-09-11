@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Planos que a Perspecta cria para cada sistema. Salvos em central.planos —
@@ -18,7 +19,7 @@ async function ref(): Promise<string | null> {
   return sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
 }
 
-export async function listarPlanosCentral(): Promise<PlanoCentral[]> {
+async function _listarPlanosCentral(): Promise<PlanoCentral[]> {
   const r = await ref();
   if (!r) return [];
   const rows = await runSupabaseQuery(
@@ -56,3 +57,5 @@ export async function removerPlanoCentral(id: string): Promise<{ ok: boolean }> 
   const res = await runSupabaseQuery(r, `delete from central.planos where id = '${idSafe}';`);
   return { ok: res !== null };
 }
+
+export const listarPlanosCentral = unstable_cache(_listarPlanosCentral, ["planos-central-lista"], { revalidate: 300, tags: ["acessos-dados"] });

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Segurança real: lê os alertas e tentativas de login que os webhooks dos
@@ -15,7 +16,7 @@ export type AlertaReal = {
   titulo: string; detalhe: any; status: string; criadoEm: string;
 };
 
-export async function listarAlertasReais(): Promise<AlertaReal[]> {
+async function _listarAlertasReais(): Promise<AlertaReal[]> {
   const r = await ref();
   if (!r) return [];
   const rows = await runSupabaseQuery(r, `select id, tipo, severidade, sistema_id, titulo, detalhe, status, criado_em from central.alertas where status = 'aberto' order by criado_em desc limit 50;`);
@@ -33,7 +34,7 @@ export type LoginSuspeito = {
 // Mesma empresa/usuário, mais de um IP distinto nas últimas 24h → acesso
 // possivelmente de mais de um dispositivo (proxy simples, sem depender de
 // fingerprint — nem todo sistema manda esse campo ainda).
-export async function detectarAcessoMultiploDispositivo(): Promise<LoginSuspeito[]> {
+async function _detectarAcessoMultiploDispositivo(): Promise<LoginSuspeito[]> {
   const r = await ref();
   if (!r) return [];
   const rows = await runSupabaseQuery(
@@ -59,7 +60,7 @@ export type LoginRecente = {
 
 // Histórico de login de todos os sistemas — a "Lista de acessos" completa,
 // não só o resumo de 24h. Usada em /acessos.
-export async function listarLoginsRecentes(limite = 100): Promise<LoginRecente[]> {
+async function _listarLoginsRecentes(limite = 100): Promise<LoginRecente[]> {
   const r = await ref();
   if (!r) return [];
   const rows = await runSupabaseQuery(
@@ -77,7 +78,7 @@ export async function listarLoginsRecentes(limite = 100): Promise<LoginRecente[]
 
 export type ResumoLogins = { sistemaId: string; sucessos24h: number; falhas24h: number };
 
-export async function resumoLoginsPorSistema(): Promise<ResumoLogins[]> {
+async function _resumoLoginsPorSistema(): Promise<ResumoLogins[]> {
   const r = await ref();
   if (!r) return [];
   const rows = await runSupabaseQuery(
@@ -91,3 +92,9 @@ export async function resumoLoginsPorSistema(): Promise<ResumoLogins[]> {
   );
   return (rows || []).map((x: any) => ({ sistemaId: String(x.sistema_id), sucessos24h: Number(x.sucessos) || 0, falhas24h: Number(x.falhas) || 0 }));
 }
+
+// Cacheados (2 min) + tag acessos-dados — evitam bater na Management API lenta a cada load.
+export const listarAlertasReais = unstable_cache(_listarAlertasReais, ["sec-alertas"], { revalidate: 120, tags: ["acessos-dados"] });
+export const detectarAcessoMultiploDispositivo = unstable_cache(_detectarAcessoMultiploDispositivo, ["sec-multidev"], { revalidate: 120, tags: ["acessos-dados"] });
+export const listarLoginsRecentes = unstable_cache(_listarLoginsRecentes, ["sec-logins-recentes"], { revalidate: 120, tags: ["acessos-dados"] });
+export const resumoLoginsPorSistema = unstable_cache(_resumoLoginsPorSistema, ["sec-resumo-logins"], { revalidate: 120, tags: ["acessos-dados"] });

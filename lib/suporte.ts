@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Chamados de suporte — registro interno da Perspecta (não vem dos clientes
@@ -66,7 +67,7 @@ function idSafe(id: string): string {
   return id.replace(/[^a-f0-9-]/gi, "");
 }
 
-export async function listarTickets(): Promise<Ticket[]> {
+async function _listarTickets(): Promise<Ticket[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
@@ -153,3 +154,5 @@ export async function atualizarStatusTicket(id: string, status: StatusTicket): P
   const res = await runSupabaseQuery(r, `update central.tickets_suporte set status = '${status}', atualizado_em = now() where id = '${idS}';`);
   return { ok: res !== null };
 }
+
+export const listarTickets = unstable_cache(_listarTickets, ["sup-tickets"], { revalidate: 120, tags: ["acessos-dados"] });

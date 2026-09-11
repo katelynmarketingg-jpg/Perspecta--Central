@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Termos de uso, um texto por sistema. Editável pelo Central; o cliente
@@ -22,7 +23,7 @@ async function ensure(r: string) {
     );`);
 }
 
-export async function listarTermos(): Promise<Record<string, TermoUso>> {
+async function _listarTermos(): Promise<Record<string, TermoUso>> {
   const r = await ref();
   if (!r) return {};
   await ensure(r);
@@ -56,3 +57,5 @@ export async function salvarTermo(sistemaId: string, texto: string): Promise<{ o
     on conflict (sistema_id) do update set texto = excluded.texto, atualizado_em = now();`);
   return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível salvar." };
 }
+
+export const listarTermos = unstable_cache(_listarTermos, ["termos-lista"], { revalidate: 300, tags: ["acessos-dados"] });

@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 // Despesas que a Perspecta cadastra à mão (assinaturas, serviços, compras
@@ -37,7 +38,7 @@ async function ensure(r: string) {
     );`);
 }
 
-export async function listarDespesas(): Promise<Despesa[]> {
+async function _listarDespesas(): Promise<Despesa[]> {
   const r = await ref();
   if (!r) return [];
   await ensure(r);
@@ -135,3 +136,5 @@ export function situacaoDespesa(d: Despesa, hoje = new Date()): SituacaoDespesa 
   if (parcelaAtual > total) return { valorEsteMes: 0, status: "concluida", detalhe: `${total}/${total} pagas` };
   return { valorEsteMes: d.valorBrl, status: "cobrando", detalhe: `parcela ${parcelaAtual}/${total}` };
 }
+
+export const listarDespesas = unstable_cache(_listarDespesas, ["despesas-lista"], { revalidate: 300, tags: ["acessos-dados"] });
