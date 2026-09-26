@@ -5,6 +5,8 @@ Central de comando de todos os sistemas Perspecta (Commerce, Central, Juris, Cre
 - **Stack:** Next.js (App Router) + TypeScript · Supabase (Postgres/Auth/RLS) · deploy Vercel · PT-BR · dark mode (paleta "Perspecta Creator", terracota `#e0713a`).
 - **Filosofia de dados:** cada módulo roda com **dados de exemplo (mock)** até a chave da integração ser configurada. O que é **ao vivo**, **manual** ou **sem dados** é marcado na interface — nunca fingimos que um valor manual é ao vivo.
 
+> **Mapa completo do sistema e regras de desenvolvimento:** veja `CLAUDE.md` (também serve de prompt para qualquer IA).
+
 ## Rodar localmente
 
 ```bash
@@ -46,7 +48,7 @@ Veja `.env.example`. Regras:
 ## Estrutura
 
 ```
-app/            rotas (dashboard + 11 módulos)
+app/            rotas (visão geral + 15 telas, agrupadas em lib/nav.ts)
 components/     shell (Sidebar/Topbar) e kit de UI (cards, KPIs, charts SVG)
 lib/            dados (mock + provedor), integrações, tipos, formatação, navegação
 lib/integrations/  supabase.ts · vercel.ts · mercadopago.ts (mock quando sem chave)
