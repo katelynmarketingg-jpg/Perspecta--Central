@@ -1,6 +1,6 @@
 import { getConvitePorToken } from "@/lib/convites";
 import { getTermo } from "@/lib/termos";
-import { planById, getSistemas } from "@/lib/data";
+import { getPlano, getSistemas } from "@/lib/data";
 import PrimeiroAcesso from "@/components/PrimeiroAcesso";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function Pagina({ params }: { params: { token: string } }) 
   }
   const sistemas = await getSistemas();
   const sistema = sistemas.find((s) => s.id === convite.sistemaId);
-  const plano = planById(convite.planoId);
+  const plano = await getPlano(convite.planoId);
   const termo = await getTermo(convite.sistemaId);
 
   return (

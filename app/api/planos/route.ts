@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarPlanosCentral, addPlanoCentral, removerPlanoCentral } from "@/lib/planos-central";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,7 @@ export async function POST(req: Request) {
     produtos: produtos == null || produtos === "" ? null : Number(produtos), preco: Number(preco) || 0,
   });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -25,5 +27,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await removerPlanoCentral(id);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível remover." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

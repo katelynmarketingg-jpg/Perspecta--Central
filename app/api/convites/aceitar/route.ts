@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { aceitarTermos } from "@/lib/convites";
 
 export const dynamic = "force-dynamic";
@@ -11,5 +12,6 @@ export async function POST(req: Request) {
   if (!body?.token) return NextResponse.json({ error: "Convite inválido." }, { status: 400 });
   const r = await aceitarTermos(String(body.token));
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível confirmar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // convite vira "em teste" na hora no painel
   return NextResponse.json({ ok: true, trialAte: r.trialAte, trialDias: r.trialDias });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarTermos, salvarTermo } from "@/lib/termos";
 
 export const dynamic = "force-dynamic";
@@ -14,5 +15,6 @@ export async function POST(req: Request) {
   const { sistemaId, texto } = body as { sistemaId: string; texto: string };
   const r = await salvarTermo(sistemaId, texto || "");
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

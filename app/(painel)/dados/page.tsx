@@ -78,7 +78,7 @@ export default async function Dados() {
             <span>O Central varreu o banco e achou estas tabelas com cara de <b>clientes</b> ou <b>logins</b>. É aqui que estão Pedro, Karen e cia. — a partir daqui a gente liga cada uma ao seu sistema. Senhas aparecem mascaradas.</span>
           </div>
           {chaves.map((t) => {
-            const cols = Array.from(new Set(t.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
+            const cols = Array.from(new Set<string>(t.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
             const tipoLabel = t.tipo === "logins" ? "logins/usuários" : t.tipo === "ambos" ? "clientes + logins" : "clientes/empresas";
             return (
               <Card key={t.tabela} title={t.tabela}
@@ -118,7 +118,7 @@ export default async function Dados() {
             <span>Nós lidos <b>ao vivo</b> do Realtime Database do Bistro. É aqui que está a Aliança — cada nó vira candidato a clientes/logins do Bistro.</span>
           </div>
           {firestore.map((c) => {
-            const cols = Array.from(new Set(c.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
+            const cols = Array.from(new Set<string>(c.amostra.flatMap((r: any) => Object.keys(r)))).slice(0, 7);
             return (
               <Card key={c.colecao} title={c.colecao} hint={`${c.amostra.length}+ documentos`} action={<Pill s="ativo" label="Realtime DB" />}>
                 <div className="tablewrap">

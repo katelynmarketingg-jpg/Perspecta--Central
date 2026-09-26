@@ -25,6 +25,7 @@ export type Convite = {
   ativadoEm: string | null;
   loginUsuario: string | null;
   loginCriadoEm: string | null;
+  pagamentoProvider: string | null; // mercadopago | asaas | infinitepay | manual
 };
 
 async function ref(): Promise<string | null> {
@@ -52,7 +53,9 @@ async function ensure(r: string) {
       ativado_em timestamptz
     );
     alter table central.convites add column if not exists login_usuario text;
-    alter table central.convites add column if not exists login_criado_em timestamptz;`);
+    alter table central.convites add column if not exists login_criado_em timestamptz;
+    alter table central.convites add column if not exists pagamento_provider text;
+    alter table central.convites add column if not exists pagamento_external_id text;`);
 }
 
 function fromRow(x: any): Convite {
@@ -62,6 +65,7 @@ function fromRow(x: any): Convite {
     trialDias: Number(x.trial_dias) || 14, status: x.status as StatusConvite,
     criadoEm: x.criado_em, termosAceitosEm: x.termos_aceitos_em, trialAte: x.trial_ate, ativadoEm: x.ativado_em,
     loginUsuario: x.login_usuario ?? null, loginCriadoEm: x.login_criado_em ?? null,
+    pagamentoProvider: x.pagamento_provider ?? null,
   };
 }
 
@@ -97,6 +101,19 @@ export async function getConvitePorToken(token: string): Promise<Convite | null>
   const tokSafe = token.replace(/[^a-z0-9]/gi, "");
   if (!tokSafe) return null;
   const rows = await runSupabaseQuery(r, `select * from central.convites where token = '${tokSafe}';`);
+  if (!rows || !rows[0]) return null;
+  return comStatusDerivado(fromRow(rows[0]));
+}
+
+// Leitura direta (sem cache) por id — usada pelo webhook de pagamento, que
+// não pode depender da lista cacheada (um convite recém-criado ficaria de fora).
+export async function getConvitePorId(id: string): Promise<Convite | null> {
+  const r = await ref();
+  if (!r) return null;
+  await ensure(r);
+  const idSafe = id.replace(/[^a-f0-9-]/gi, "");
+  if (!idSafe) return null;
+  const rows = await runSupabaseQuery(r, `select * from central.convites where id = '${idSafe}';`);
   if (!rows || !rows[0]) return null;
   return comStatusDerivado(fromRow(rows[0]));
 }
@@ -160,6 +177,14 @@ export async function confirmarPagamento(token: string, provider?: string, exter
   const ext = externalId ? `'${externalId.replace(/'/g, "''")}'` : "null";
   const res = await runSupabaseQuery(r, `update central.convites set status = 'ativo', ativado_em = now(), pagamento_provider = ${prov}, pagamento_external_id = ${ext} where token = '${tokSafe}';`);
   return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível confirmar o pagamento." };
+}
+
+// Baixa manual: o cliente pagou por fora (Pix direto, transferência…) e você
+// registra aqui para o convite virar "pagando".
+export async function marcarPagoManual(id: string): Promise<{ ok: boolean; erro?: string }> {
+  const c = await getConvitePorId(id);
+  if (!c) return { ok: false, erro: "Convite não encontrado." };
+  return confirmarPagamento(c.token, "manual");
 }
 
 export async function cancelarConvite(id: string): Promise<{ ok: boolean }> {

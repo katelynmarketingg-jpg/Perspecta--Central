@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getConvitePorToken, confirmarPagamento } from "@/lib/convites";
 import { getProvedorAtivo } from "@/lib/integrations/payments";
-import { planById } from "@/lib/data";
+import { getPlano } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,7 +20,7 @@ export async function POST(req: Request) {
   if (c.status === "ativo") return NextResponse.json({ error: "Este acesso já está com pagamento confirmado." }, { status: 400 });
   if (c.status === "pendente") return NextResponse.json({ error: "Aceite os termos de uso primeiro." }, { status: 400 });
 
-  const plano = planById(c.planoId);
+  const plano = await getPlano(c.planoId);
   if (!plano) return NextResponse.json({ error: "Plano não encontrado." }, { status: 400 });
 
   const provider = await getProvedorAtivo();
@@ -38,5 +39,6 @@ export async function POST(req: Request) {
 
   const r = await confirmarPagamento(c.token, provider.id, sub.externalId);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível confirmar o pagamento." }, { status: 400 });
+  revalidateTag("acessos-dados"); // cliente vira "pagando" na hora no painel
   return NextResponse.json({ ok: true, simulado: sub.simulado ?? false, valor: plano.valor, provider: provider.id });
 }

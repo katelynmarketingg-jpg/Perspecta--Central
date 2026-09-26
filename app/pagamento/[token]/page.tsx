@@ -1,5 +1,5 @@
 import { getConvitePorToken } from "@/lib/convites";
-import { planById, getSistemas } from "@/lib/data";
+import { getPlano, getSistemas } from "@/lib/data";
 import { getProvedorAtivoId } from "@/lib/integrations/payments";
 import PagamentoSelfService from "@/components/PagamentoSelfService";
 
@@ -21,7 +21,7 @@ export default async function Pagina({ params }: { params: { token: string } }) 
   }
   const [sistemas, provider] = await Promise.all([getSistemas(), getProvedorAtivoId()]);
   const sistema = sistemas.find((s) => s.id === convite.sistemaId);
-  const plano = planById(convite.planoId);
+  const plano = await getPlano(convite.planoId);
 
   return (
     <PagamentoSelfService

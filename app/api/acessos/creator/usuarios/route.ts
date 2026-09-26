@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getCreatorUsers, criarUsuarioCreator, acaoUsuarioCreator, type AcaoUsuario } from "@/lib/integrations/creator";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   if (!org) return NextResponse.json({ error: "Informe o escritório." }, { status: 400 });
   const r = await criarUsuarioCreator(Number(org), { nome, usuario, senha, papel });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -35,5 +37,6 @@ export async function PATCH(req: Request) {
   if (!acao || !org || !id) return NextResponse.json({ error: "Informe ação, escritório e login." }, { status: 400 });
   const r = await acaoUsuarioCreator(acao, Number(org), Number(id), senha);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível concluir." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

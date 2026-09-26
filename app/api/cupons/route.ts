@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarCupons, addCupom, removerCupom } from "@/lib/cupons";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   const { codigo, tipo, valor, descricao } = body as { codigo: string; tipo: "valor" | "percent"; valor: number; descricao: string };
   const r = await addCupom(codigo, tipo, Number(valor), descricao || "");
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -22,5 +24,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await removerCupom(id);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível remover." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

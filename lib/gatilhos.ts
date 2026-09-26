@@ -108,7 +108,7 @@ async function _getResumoCusto(): Promise<{ atualBrl: number; previstoBrl: numbe
   const previstoBrl = itens.reduce((a, g) => a + g.custoPrevistoBrl, 0) + manualBrl;
   return { atualBrl, previstoBrl, itens, manualBrl };
 }
-export const getResumoCusto = unstable_cache(_getResumoCusto, ["resumo-custo-v1"], { revalidate: 300 });
+export const getResumoCusto = unstable_cache(_getResumoCusto, ["resumo-custo-v1"], { revalidate: 300, tags: ["acessos-dados"] });
 
 function brl(n: number) { return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getConvitePorToken, confirmarPagamento, listarConvites } from "@/lib/convites";
+import { revalidateTag } from "next/cache";
+import { getConvitePorId, confirmarPagamento } from "@/lib/convites";
 import { registrarEvento, marcarProcessado } from "@/lib/webhooks";
 
 export const dynamic = "force-dynamic";
@@ -23,12 +24,12 @@ export async function POST(req: Request) {
   if (reg.duplicado) return NextResponse.json({ success: true });
 
   try {
-    const convites = await listarConvites();
-    const convite = convites.find((c) => c.id === m[1]);
+    const convite = await getConvitePorId(m[1]);
     if (!convite) { await marcarProcessado(idempotencyKey, "convite não encontrado"); return NextResponse.json({ success: true }); }
 
     const r = await confirmarPagamento(convite.token, "infinitepay", body.transaction_nsu ? String(body.transaction_nsu) : undefined);
     await marcarProcessado(idempotencyKey, r.ok ? undefined : r.erro);
+    if (r.ok) revalidateTag("acessos-dados");
   } catch (e: any) {
     await marcarProcessado(idempotencyKey, e?.message || "erro ao processar");
   }

@@ -5,7 +5,7 @@ import { planById, sysById } from "@/lib/data";
 // Recebe um cadastro de cliente novo e cria a assinatura recorrente.
 // IMPORTANTE: o corpo traz apenas um TOKEN de cartão gerado no navegador —
 // o número do cartão nunca chega aqui. Sem a chave do Mercado Pago, roda simulado.
-export const TRIAL_DIAS = 14;
+const TRIAL_DIAS = 14;
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);

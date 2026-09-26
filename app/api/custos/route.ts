@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarCustosManuais, addCustoManual, updateCustoManual, removerCustoManual } from "@/lib/custos-manuais";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   const { nome, valorBrl, sistemaId } = body as { nome: string; valorBrl: number; sistemaId: string | null };
   const r = await addCustoManual(nome, Number(valorBrl), sistemaId || null);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -24,6 +26,7 @@ export async function PATCH(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await updateCustoManual(id, nome, Number(valorBrl), sistemaId || null);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível atualizar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -32,5 +35,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await removerCustoManual(id);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível remover." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { adicionarMensagem } from "@/lib/suporte";
 
 export const dynamic = "force-dynamic";
@@ -10,5 +11,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const { autor, texto, anexoBase64, anexoNome } = body as { autor?: string; texto: string; anexoBase64?: string | null; anexoNome?: string | null };
   const r = await adicionarMensagem(params.id, { autor: autor || "Você", texto, anexoBase64, anexoNome });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível enviar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

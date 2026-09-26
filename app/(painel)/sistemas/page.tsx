@@ -1,6 +1,6 @@
 import { Icon } from "@/components/ui";
 import SistemaCard, { type SistemaCardData } from "@/components/SistemaCard";
-import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
+import { getSistemas, getEmpresas, getPlanosTodos, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus, firebaseConfigured, getContagemContasBistro } from "@/lib/integrations/firebase";
 import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supabase";
@@ -36,7 +36,7 @@ function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): 
 }
 
 export default async function Infra() {
-  const [sistemas, empresas] = await Promise.all([getSistemas(), getEmpresas()]);
+  const [sistemas, empresas, planos] = await Promise.all([getSistemas(), getEmpresas(), getPlanosTodos()]);
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
   const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos] = await Promise.all([
     creatorStatus(),
@@ -88,7 +88,7 @@ export default async function Infra() {
           const source = creatorLive || bistroLive ? "live" : s.statusSource;
           const manual = s.host === "Render" && !creatorLive; // Juris continua manual; Creator não
           const contas: number | null = contasPorSistema[s.id] ?? null;
-          const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(empresas, s.id);
+          const mrr = s.id === "creator" && mrrCreator != null ? mrrCreator : receitaSistema(empresas, s.id, planos);
           const banco = bancoDe(s.banco, s.supabaseRef);
           const custo = custoInfra(s.host, true, s.host === "Render" ? renderCustoDoSistema(s.url) : null);
           const custoValor = custo.valor; // null = a confirmar

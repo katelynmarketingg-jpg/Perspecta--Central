@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarTickets, criarTicket, type Categoria, type Prioridade } from "@/lib/suporte";
 
 export const dynamic = "force-dynamic";
@@ -18,5 +19,6 @@ export async function POST(req: Request) {
   };
   const r = await criarTicket({ assunto, categoria, prioridade, sistemaId: sistemaId || null, empresaRef: empresaRef || null, mensagem, anexoBase64, anexoNome });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível criar o chamado." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true, id: r.id });
 }

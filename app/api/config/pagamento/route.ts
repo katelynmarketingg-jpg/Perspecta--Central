@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { getProvedorAtivoId, setProvedorAtivo, TODOS_PROVEDORES, type ProviderId } from "@/lib/integrations/payments";
 
 export const dynamic = "force-dynamic";
@@ -19,5 +20,6 @@ export async function POST(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o provedor." }, { status: 400 });
   const r = await setProvedorAtivo(id);
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

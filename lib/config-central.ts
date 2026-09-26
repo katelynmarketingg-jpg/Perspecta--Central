@@ -10,9 +10,21 @@ async function ref(): Promise<string | null> {
   return sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
 }
 
+async function ensure(r: string) {
+  await runSupabaseQuery(r, `
+    create schema if not exists central;
+    create table if not exists central.configuracoes (
+      chave text primary key,
+      valor jsonb not null,
+      atualizado_em timestamptz not null default now()
+    );`);
+}
+
 export async function getConfig<T = any>(chave: string, padrao: T): Promise<T> {
   const r = await ref();
   if (!r) return padrao;
+  // Sem ensure aqui: se a tabela ainda não existe a query falha e cai no padrão
+  // (evita uma ida extra à Management API a cada leitura).
   const chaveSafe = chave.replace(/[^a-z0-9_.-]/gi, "");
   const rows = await runSupabaseQuery(r, `select valor from central.configuracoes where chave = '${chaveSafe}';`);
   if (!rows || !rows[0]) return padrao;
@@ -22,6 +34,7 @@ export async function getConfig<T = any>(chave: string, padrao: T): Promise<T> {
 export async function setConfig(chave: string, valor: any): Promise<{ ok: boolean; erro?: string }> {
   const r = await ref();
   if (!r) return { ok: false, erro: "Supabase não configurado." };
+  await ensure(r);
   const chaveSafe = chave.replace(/[^a-z0-9_.-]/gi, "");
   const json = JSON.stringify(valor).replace(/'/g, "''");
   const res = await runSupabaseQuery(

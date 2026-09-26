@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { listarDespesas, addDespesa, definirAtivoDespesa, removerDespesa, type TipoDespesa } from "@/lib/despesas";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     dataInicio, sistemaId: sistemaId || null,
   });
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível salvar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -32,6 +34,7 @@ export async function PATCH(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await definirAtivoDespesa(id, !!ativo);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível atualizar." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }
 
@@ -40,5 +43,6 @@ export async function DELETE(req: Request) {
   if (!id) return NextResponse.json({ error: "Informe o id." }, { status: 400 });
   const r = await removerDespesa(id);
   if (!r.ok) return NextResponse.json({ error: "Não foi possível remover." }, { status: 400 });
+  revalidateTag("acessos-dados"); // a tela mostra a mudança na hora
   return NextResponse.json({ ok: true });
 }

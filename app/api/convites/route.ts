@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { listarConvites, criarConvite, cancelarConvite } from "@/lib/convites";
+import { listarConvites, criarConvite, cancelarConvite, marcarPagoManual } from "@/lib/convites";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,6 +20,16 @@ export async function POST(req: Request) {
   if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível gerar o convite." }, { status: 400 });
   revalidateTag("acessos-dados"); // convite novo aparece na hora
   return NextResponse.json({ ok: true, token: r.token });
+}
+
+// Baixa manual de pagamento (cliente pagou por fora: Pix direto, transferência…).
+export async function PATCH(req: Request) {
+  const body = await req.json().catch(() => null);
+  if (!body?.id || body?.acao !== "marcar_pago") return NextResponse.json({ error: "Informe o id e a ação." }, { status: 400 });
+  const r = await marcarPagoManual(String(body.id));
+  if (!r.ok) return NextResponse.json({ error: r.erro || "Não foi possível registrar o pagamento." }, { status: 400 });
+  revalidateTag("acessos-dados");
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {

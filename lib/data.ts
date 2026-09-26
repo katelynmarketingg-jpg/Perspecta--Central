@@ -14,6 +14,25 @@ export const sysById = (id: string): Sistema | undefined => mock.sistemas.find((
 export const empById = (lista: Empresa[], id: string): Empresa | undefined => lista.find((e) => e.id === id);
 
 export const getPlanos = () => mock.planos;
+
+// Plano "resolvido" para cobrança/exibição. Os convites novos apontam para os
+// planos reais (central.planos, id uuid); os antigos, para os modelos do
+// mock.ts (p1, p2…). Esta lista junta os dois, com os reais primeiro — sem
+// isso, a cobrança de um convite com plano real dava "Plano não encontrado".
+export type PlanoSimples = { id: string; sis: string; nome: string; valor: number };
+
+export async function getPlanosTodos(): Promise<PlanoSimples[]> {
+  const { listarPlanosCentral } = await import("./planos-central");
+  const reais = (await listarPlanosCentral()).map((p) => ({ id: p.id, sis: p.sistemaId, nome: p.nome, valor: p.preco }));
+  const modelos = mock.planos
+    .filter((m) => !reais.some((r) => r.id === m.id))
+    .map((m) => ({ id: m.id, sis: m.sis, nome: m.nome, valor: m.valor }));
+  return [...reais, ...modelos];
+}
+
+export async function getPlano(id: string): Promise<PlanoSimples | undefined> {
+  return (await getPlanosTodos()).find((p) => p.id === id);
+}
 export const getTickets = () => mock.tickets;
 export const getLoginAttempts = () => mock.loginAttempts;
 export const serie = mock.serie;
@@ -118,24 +137,25 @@ async function _getEmpresas(): Promise<Empresa[]> {
       } as Empresa;
     });
 }
-export const getEmpresas = unstable_cache(_getEmpresas, ["empresas-de-convites-v2"], { revalidate: 600 });
+export const getEmpresas = unstable_cache(_getEmpresas, ["empresas-de-convites-v3"], { revalidate: 600, tags: ["acessos-dados"] });
 
 async function _getPagamentos(): Promise<Pagamento[]> {
   const { listarConvites } = await import("./convites");
-  const convites = await listarConvites();
+  const [convites, planos] = await Promise.all([listarConvites(), getPlanosTodos()]);
   const out: Pagamento[] = [];
   for (const c of convites) {
-    const plano = planById(c.planoId);
+    const plano = planos.find((p) => p.id === c.planoId);
     const valor = plano?.valor || 0;
     if (c.status === "ativo" && c.ativadoEm) {
-      out.push({ id: c.id + "_pago", emp: c.id, valor, status: "pago", metodo: "Cartão (Mercado Pago)", data: new Date(c.ativadoEm).toLocaleDateString("pt-BR") });
+      const METODO: Record<string, string> = { mercadopago: "Cartão (Mercado Pago)", asaas: "Cartão (Asaas)", infinitepay: "InfinitePay", manual: "Baixa manual" };
+      out.push({ id: c.id + "_pago", emp: c.id, valor, status: "pago", metodo: METODO[c.pagamentoProvider || ""] || "Cartão", data: new Date(c.ativadoEm).toLocaleDateString("pt-BR") });
     } else if (c.status === "aguardando_pagamento" && c.trialAte) {
       out.push({ id: c.id + "_venc", emp: c.id, valor, status: "vencido", metodo: "—", data: new Date(c.trialAte).toLocaleDateString("pt-BR"), motivo: "Teste grátis acabou sem forma de pagamento cadastrada" });
     }
   }
   return out;
 }
-export const getPagamentos = unstable_cache(_getPagamentos, ["pagamentos-de-convites-v2"], { revalidate: 600 });
+export const getPagamentos = unstable_cache(_getPagamentos, ["pagamentos-de-convites-v3"], { revalidate: 600, tags: ["acessos-dados"] });
 
 // --- Custos (reais do banco + manuais cadastrados) --------------------------
 
@@ -154,10 +174,12 @@ async function _getCustos(): Promise<Custo[]> {
 export const getCustos = unstable_cache(_getCustos, ["custos-reais-v2"], { revalidate: 600 });
 
 // Receita mensal (MRR) de um sistema a partir das assinaturas ativas.
-export function receitaSistema(empresas: Empresa[], sid: string): number {
+// Passe `planos` (getPlanosTodos) para enxergar os planos reais do banco.
+export function receitaSistema(empresas: Empresa[], sid: string, planos?: PlanoSimples[]): number {
+  const valorDe = (id: string) => (planos ? planos.find((p) => p.id === id)?.valor : planById(id)?.valor) || 0;
   return empresas
     .filter((e) => e.sis === sid && e.status !== "canc")
-    .reduce((sum, e) => sum + (planById(e.plano)?.valor || 0), 0);
+    .reduce((sum, e) => sum + valorDe(e.plano), 0);
 }
 
 export function custoSistema(custos: Custo[], sid: string): number {
