@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV } from "@/lib/nav";
 
-export default function Sidebar({ badges }: { badges: { suporte: number; pagamentos: number } }) {
+export default function Sidebar({ badges }: { badges: { suporte: number; pagamentos: number; convites: number } }) {
   const path = usePathname();
   const isActive = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   const logout = async () => {

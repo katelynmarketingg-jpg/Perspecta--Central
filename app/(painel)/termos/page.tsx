@@ -19,7 +19,7 @@ export default async function Termos() {
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
         <span>
-          Cada sistema tem o seu <b>termo de uso</b>. Quando você gera um convite de <b>primeiro acesso</b> (aba Acessos), o cliente vê exatamente este texto e precisa aceitar antes do teste grátis começar a contar.
+          Cada sistema tem o seu <b>termo de uso</b>. Quando você gera um convite de <b>primeiro acesso</b> (em <a href="/convites" style={{ color: "var(--accent)", fontWeight: 600 }}>Novo cliente</a>), o cliente vê exatamente este texto e precisa aceitar antes do teste grátis começar a contar.
         </span>
       </div>
 

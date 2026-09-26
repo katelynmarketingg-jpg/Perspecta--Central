@@ -49,6 +49,12 @@ export default function Topbar({ sistemas = [] }: { sistemas?: SisFiltro[] }) {
         <div className="sub">{meta.sub}</div>
       </div>
       <div className="filters">
+        {path !== "/convites" && (
+          <a href="/convites?novo=1" className="btn-primary" title="Gerar convite de primeiro acesso para um cliente novo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M12 5v14M5 12h14" /></svg>
+            Novo cliente
+          </a>
+        )}
         <span className="selectlike" style={{ position: "relative" }}>
           <span className="dot" style={{ background: sistemas.find((s) => s.id === sisAtual)?.cor || undefined }} />
           {sistemas.find((s) => s.id === sisAtual)?.nome || "Todos os sistemas"}

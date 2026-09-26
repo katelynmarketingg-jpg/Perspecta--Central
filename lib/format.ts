@@ -30,3 +30,12 @@ export const STATUS_COR: Record<string, string> = {
 };
 export const statusLabel = (s: string) => STATUS_LABEL[s] || s;
 export const statusCor = (s: string) => STATUS_COR[s] || "var(--faint)";
+
+// Link wa.me com a mensagem pronta. Número brasileiro sem DDI ganha o 55.
+// Sem número válido devolve null (a tela esconde o botão).
+export function linkWhatsApp(numero: string | null | undefined, texto: string): string | null {
+  const d = (numero || "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+  const comDdi = d.length <= 11 ? "55" + d : d;
+  return `https://wa.me/${comDdi}?text=${encodeURIComponent(texto)}`;
+}

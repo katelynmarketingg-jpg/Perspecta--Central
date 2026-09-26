@@ -20,7 +20,7 @@ export default async function Clientes() {
 
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Sua <b>carteira de clientes</b> — quem são as empresas, contato, valor e situação, lido ao vivo de cada sistema. Para <b>criar acesso</b> ou ver <b>logins</b>, vá em <a href="/acessos" style={{ color: "var(--accent)", fontWeight: 600 }}>Acessos →</a>.</span>
+        <span>Sua <b>carteira de clientes</b> — quem são as empresas, contato, valor e situação, lido ao vivo de cada sistema. Cliente novo? <a href="/convites?novo=1" style={{ color: "var(--accent)", fontWeight: 600 }}>Novo cliente →</a> · criar acesso direto ou ver <b>logins</b>: <a href="/acessos" style={{ color: "var(--accent)", fontWeight: 600 }}>Acessos →</a> · quem pagou: <a href="/pagamentos" style={{ color: "var(--accent)", fontWeight: 600 }}>Cobranças →</a>.</span>
       </div>
 
       {clientes.length === 0 ? (
@@ -28,7 +28,7 @@ export default async function Clientes() {
           <div className="placeholder">
             <div className="pi"><Icon path='<circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/>' size={24} /></div>
             <h3>Nenhum cliente encontrado ainda</h3>
-            <p>Veja em <b>Dados reais</b> quais tabelas existem e me diga qual é a de clientes.</p>
+            <p>Veja em <a href="/dados" style={{ color: "var(--accent)", fontWeight: 600 }}>Diagnóstico de dados</a> quais tabelas existem e qual é a de clientes.</p>
           </div>
         </Card>
       ) : (

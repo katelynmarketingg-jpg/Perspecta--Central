@@ -1,11 +1,8 @@
 import { Icon, Kpi, Card, Pill } from "@/components/ui";
 import AcessosCreator from "@/components/AcessosCreator";
 import AcessosSistema from "@/components/AcessosSistema";
-import AcessosConvite from "@/components/AcessosConvite";
 import { HistoricoLogins, type LoginRow } from "@/components/HistoricoLogins";
-import { getSistemas, getPlanos } from "@/lib/data";
-import { listarPlanosCentral } from "@/lib/planos-central";
-import { listarConvites } from "@/lib/convites";
+import { getSistemas } from "@/lib/data";
 import { creatorMe, getCreatorOrgs, getCreatorReceita, creatorConfigured, creatorStatus } from "@/lib/integrations/creator";
 import { firebaseConfigured, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { jurisConfigured, jurisStatus, listarEscritoriosJuris } from "@/lib/integrations/juris";
@@ -26,19 +23,17 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
   const corDe = (id: string) => sistemas.find((s) => s.id === id)?.cor || "var(--accent)";
   const nomeDe = (id: string) => nomeCurto(sistemas.find((s) => s.id === id)?.nome || id);
 
-  const [me, orgsRes, recRes, lojasCommerce, escritoriosJuris, bistroEst, convites, creatorSt, jurisSt, commerceSt, loginsReais, planosReais] = await Promise.all([
+  const [me, orgsRes, recRes, lojasCommerce, escritoriosJuris, bistroEst, creatorSt, jurisSt, commerceSt, loginsReais] = await Promise.all([
     creatorConfigured() ? creatorMe() : Promise.resolve({ ok: false, superadmin: false, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorOrgs() : Promise.resolve({ orgs: null as any[] | null, erro: "Creator não configurado" }),
     creatorConfigured() ? getCreatorReceita() : Promise.resolve({ receita: null }),
     commerceConfigured() ? listarLojasCommerce() : Promise.resolve(null),
     jurisConfigured() ? listarEscritoriosJuris() : Promise.resolve(null),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
-    listarConvites(),
     creatorConfigured() ? creatorStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
     jurisConfigured() ? jurisStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
     commerceConfigured() ? commerceStatus() : Promise.resolve({ configurado: false, ok: false, erro: "sem chave" }),
     listarLoginsRecentes(150),
-    listarPlanosCentral(),
   ]);
   const linhasLogin: LoginRow[] = loginsReais.map((l) => ({
     sistemaId: l.sistemaId, sistemaNome: nomeDe(l.sistemaId), cor: corDe(l.sistemaId),
@@ -50,13 +45,6 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
     { sis: "Juris", st: jurisSt },
     { sis: "Commerce", st: commerceSt },
   ];
-  // Planos reais da Perspecta (central.planos); cai nos modelos de exemplo só
-  // enquanto o token do schema central não estiver válido (senão o convite
-  // ficaria sem plano pra escolher).
-  const planos = planosReais.length
-    ? planosReais.map((p) => ({ id: p.id, sis: p.sistemaId, nome: p.nome, valor: p.preco }))
-    : getPlanos();
-  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: s.nome, cor: s.cor }));
   const cor = corDe("creator");
   const r = recRes.receita;
 
@@ -86,7 +74,7 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
         <span>
-          <b>Empresas que usam cada sistema</b> (a visão da Perspecta, dona) e os <b>logins</b> de cada uma. Hoje dá pra <b>gerenciar</b> os do Creator; os outros aparecem para consulta e ganham gestão em seguida.
+          A <b>operação</b> dos logins: criar acesso direto em cada sistema, gerenciar os logins do Creator e ver o histórico de entradas. Cliente novo, com teste grátis e cobrança? Use <a href="/convites?novo=1" style={{ color: "var(--accent)", fontWeight: 600 }}>Novo cliente</a> — lá o próprio cliente cria o login no 1º acesso.
         </span>
       </div>
 
@@ -119,11 +107,38 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
         </div>
       </Card>
 
-      <div className="sec-title" style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 15, margin: 0 }}>Convites de primeiro acesso — todos os sistemas</h3>
-      </div>
-      <AcessosConvite sistemas={sisSimples} planos={planos} convites={convites} />
+      {mostrar("creator") && (
+        <>
+          <div className="sec-title" style={{ marginTop: 18 }}>
+            <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
+          </div>
+          <AcessosCreator me={me} orgs={orgsRes.orgs} orgsErro={orgsRes.erro} cor={cor} />
+        </>
+      )}
 
+      {(mostrar("juris") || mostrar("commerce")) && (
+        <div className="sec-title" style={{ marginTop: 18 }}>
+          <h3 style={{ fontSize: 15, margin: 0 }}>Criar acesso direto — Juris e Commerce</h3>
+        </div>
+      )}
+      {mostrar("juris") && (
+        <AcessosSistema
+          kind="juris" titulo="Perspecta Juris" cor={corDe("juris")}
+          pronto={jurisSt.configurado && jurisSt.ok}
+          motivoBloqueio={!jurisSt.configurado ? "Faltam as variáveis JURIS_* no Vercel." : jurisSt.erro}
+        />
+      )}
+      {mostrar("commerce") && (
+        <AcessosSistema
+          kind="commerce" titulo="Perspecta Commerce" cor={corDe("commerce")}
+          pronto={commerceSt.configurado && commerceSt.ok}
+          motivoBloqueio={!commerceSt.configurado ? "Faltam as variáveis COMMERCE_SUPABASE_* no Vercel." : commerceSt.erro}
+        />
+      )}
+
+      <div className="sec-title" style={{ marginTop: 18 }}>
+        <h3 style={{ fontSize: 15, margin: 0 }}>Contas e histórico de logins</h3>
+      </div>
       <Card title="Contas por sistema" hint={`${empresas.length} no total · lidas ao vivo · clique pra filtrar`}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {filtro && (
@@ -149,7 +164,7 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
         </div>
       </Card>
 
-      <Card title="Lista de acessos" hint="todo login, de quem já manda o evento — sucesso e falha">
+      <Card title="Histórico de logins" hint="todo login, de quem já manda o evento — sucesso e falha">
         {linhasLogin.length === 0 ? (
           <div style={{ color: "var(--muted)", fontSize: 13.5 }}>Ainda sem nenhum login registrado — aparece aqui assim que um sistema mandar o primeiro evento.</div>
         ) : (
@@ -157,34 +172,6 @@ export default async function Acessos({ searchParams }: { searchParams?: { siste
         )}
       </Card>
 
-      {mostrar("creator") && (
-        <>
-          <div className="sec-title" style={{ marginTop: 18 }}>
-            <h3 style={{ fontSize: 15, margin: 0 }}>Gerenciar acessos — Perspecta Creator</h3>
-          </div>
-          <AcessosCreator me={me} orgs={orgsRes.orgs} orgsErro={orgsRes.erro} cor={cor} />
-        </>
-      )}
-
-      {(mostrar("juris") || mostrar("commerce")) && (
-        <div className="sec-title" style={{ marginTop: 18 }}>
-          <h3 style={{ fontSize: 15, margin: 0 }}>Criar acesso direto — outros sistemas</h3>
-        </div>
-      )}
-      {mostrar("juris") && (
-        <AcessosSistema
-          kind="juris" titulo="Perspecta Juris" cor={corDe("juris")}
-          pronto={jurisSt.configurado && jurisSt.ok}
-          motivoBloqueio={!jurisSt.configurado ? "Faltam as variáveis JURIS_* no Vercel." : jurisSt.erro}
-        />
-      )}
-      {mostrar("commerce") && (
-        <AcessosSistema
-          kind="commerce" titulo="Perspecta Commerce" cor={corDe("commerce")}
-          pronto={commerceSt.configurado && commerceSt.ok}
-          motivoBloqueio={!commerceSt.configurado ? "Faltam as variáveis COMMERCE_SUPABASE_* no Vercel." : commerceSt.erro}
-        />
-      )}
     </>
   );
 }

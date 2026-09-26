@@ -1,15 +1,11 @@
 import { Card, Kpi, Icon, Pill, Fonte } from "@/components/ui";
 import CustosManuais from "@/components/CustosManuais";
-import SimuladorPlanos from "@/components/SimuladorPlanos";
-import PlanosSalvos from "@/components/PlanosSalvos";
-import Cupons from "@/components/Cupons";
+import DespesasView from "@/components/Despesas";
 import { getResumoCusto } from "@/lib/gatilhos";
 import { listarCustosManuais } from "@/lib/custos-manuais";
 import { getSistemas } from "@/lib/data";
-import { getClientesUnificados, getContagemPorSistema } from "@/lib/clientes";
-import { listarCupons } from "@/lib/cupons";
-import { listarPlanosCentral } from "@/lib/planos-central";
-import { CAMBIO_USD_BRL } from "@/lib/precos";
+import { getClientesUnificados } from "@/lib/clientes";
+import { listarDespesas, situacaoDespesa } from "@/lib/despesas";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -20,48 +16,24 @@ const ROTULO: Record<string, string> = {
   ok: "grátis", perto: "quase no limite", passou: "já paga", pago: "pago", medir: "grátis",
 };
 
-// Custo real por GB, por provedor onde cada sistema roda (US$/GB/mês).
-const GB_USD: Record<string, number> = {
-  commerce: 0.125, juris: 0.125, hub: 0.125, // Supabase
-  creator: 0.25,                              // Render (disco)
-  bistro: 5,                                  // Firebase (armazenamento)
-  central: 0,
-};
-
-export default async function CustosEPlanos() {
-  const [{ atualBrl, previstoBrl, itens, manualBrl }, sistemas, empresas, cupons, custosManuais, contagem, planosSalvos] = await Promise.all([
+export default async function CustosEDespesas() {
+  const [{ atualBrl, previstoBrl, itens, manualBrl }, sistemas, empresas, custosManuais, despesas] = await Promise.all([
     getResumoCusto(),
     getSistemas(),
     getClientesUnificados(),
-    listarCupons(),
     listarCustosManuais(),
-    getContagemPorSistema(),
-    listarPlanosCentral(),
+    listarDespesas(),
   ]);
   const diff = previstoBrl - atualBrl;
 
-  // Custos fixos que você adiciona (ex.: Claude) são rateados por empresa:
-  // os de um sistema, pelas empresas daquele sistema; os "de todos", pelo total.
-  const totalEmp = empresas.length;
-  const manualGlobal = custosManuais.filter((c) => !c.sistemaId).reduce((a, c) => a + c.valorBrl, 0);
-  const fixoPorEmpresa = (id: string) => {
-    const doSis = custosManuais.filter((c) => c.sistemaId === id).reduce((a, c) => a + c.valorBrl, 0);
-    const nSis = Math.max(contagem[id] || 0, 1);
-    return doSis / nSis + (totalEmp > 0 ? manualGlobal / totalEmp : 0);
-  };
-
-  const sisSimples = sistemas.map((s) => ({
-    id: s.id, nome: nomeCurto(s.nome), cor: s.cor,
-    gbBrl: (GB_USD[s.id] ?? 0.125) * CAMBIO_USD_BRL,
-    loginBrl: 0,
-    fixoBrl: fixoPorEmpresa(s.id),
-  }));
+  const sisSimples = sistemas.map((s) => ({ id: s.id, nome: nomeCurto(s.nome), cor: s.cor }));
+  const despesasComSituacao = despesas.map((d) => ({ ...d, situacao: situacaoDespesa(d) }));
 
   return (
     <>
       <div className="banner">
         <Icon path='<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>' />
-        <span>Monte um plano de cada sistema com o <b>simulador</b> — armazenamento, logins e preço viram <b>custo real por GB</b>, <b>lucro</b> e <b>markup</b>, hoje e quando começar a pagar. Mais abaixo, o <b>custo de infra hoje × previsto</b> de tudo que roda por trás.</span>
+        <span>Tudo que <b>sai</b> do caixa: o <b>custo de infra hoje × previsto</b> (quando o grátis acabar), os <b>custos fixos</b> que você cadastra (ex.: Claude) e as <b>despesas</b> com vencimento. Para montar preço de venda, use <a href="/planos" style={{ color: "var(--accent)", fontWeight: 600 }}>Planos & cupons</a>.</span>
       </div>
 
       <div className="grid-kpi">
@@ -70,12 +42,6 @@ export default async function CustosEPlanos() {
         <Kpi icon='<path d="M12 5v14M5 12h14"/>' k="Aumento quando pagar tudo" v={BRL(diff)} tag={<Fonte tipo="estimativa" />} />
         <Kpi icon='<circle cx="9" cy="8" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0"/>' k="Empresas ativas" v={empresas.length} tag={<Fonte tipo="vivo" />} />
       </div>
-
-      <SimuladorPlanos sistemas={sisSimples} cupons={cupons} />
-
-      <PlanosSalvos planos={planosSalvos} sistemas={sisSimples} />
-
-      <Cupons cupons={cupons} />
 
       <Card title="Custo por serviço — hoje × previsto" hint="quando o grátis acabar, entra o pacote pago">
         <div className="tablewrap">
@@ -119,11 +85,13 @@ export default async function CustosEPlanos() {
           </table>
         </div>
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--faint)" }}>
-          "Previsto" assume todos os pacotes pagos ativos (Supabase Pro, Vercel Pro, etc.). Câmbio e preços conferidos em {itens[0]?.conferido || "—"} — fontes nas linhas da aba <b>Consumos</b>. Ajuste o câmbio em lib/precos se precisar.
+          "Previsto" assume todos os pacotes pagos ativos (Supabase Pro, Vercel Pro, etc.). Câmbio e preços conferidos em {itens[0]?.conferido || "—"} — fontes nas linhas de <a href="/consumos" style={{ color: "var(--accent)" }}>Uso & limites</a>. Ajuste o câmbio em lib/precos se precisar.
         </div>
       </Card>
 
       <CustosManuais sistemas={sisSimples} custos={custosManuais} />
+
+      <DespesasView sistemas={sisSimples} despesas={despesasComSituacao} />
     </>
   );
 }

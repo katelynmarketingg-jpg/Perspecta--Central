@@ -52,7 +52,7 @@ export default async function Config() {
           </table>
         </div>
         <p style={{ color: "var(--muted)", fontSize: 12, padding: "10px 4px 0" }}>
-          O token nunca fica guardado dentro do app — colar a chave aqui numa tela exigiria armazenar segredo em banco, o que é menos seguro que a Vercel. Por isso o botão acima leva direto pra lá.
+          O token nunca fica guardado dentro do app — colar a chave aqui numa tela exigiria armazenar segredo em banco, o que é menos seguro que a Vercel. Por isso o botão acima leva direto pra lá. Para ver <b>o que cada fonte está lendo</b> (tabelas, nós do Firebase, serviços do Render), abra o <a href="/dados" style={{ color: "var(--accent)", fontWeight: 600 }}>Diagnóstico de dados</a>.
         </p>
       </Card>
 

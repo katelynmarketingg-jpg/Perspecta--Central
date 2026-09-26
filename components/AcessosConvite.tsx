@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Pill } from "@/components/ui";
+import { linkWhatsApp } from "@/lib/format";
 
 type Sis = { id: string; nome: string; cor: string };
 type Plano = { id: string; sis: string; nome: string; valor: number };
@@ -25,14 +26,22 @@ const aBtn: React.CSSProperties = {
 
 const BRL = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Sistemas em que o próprio cliente cria o login no 1º acesso (API pronta).
+const AUTOMATICOS = ["creator", "juris", "commerce"];
+
 function diasRestantes(iso: string | null): number | null {
   if (!iso) return null;
   return Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 }
 
-export default function AcessosConvite({ sistemas, planos, convites }: { sistemas: Sis[]; planos: Plano[]; convites: Convite[] }) {
+export default function AcessosConvite({ sistemas, planos, convites, todosPlanos, abrir = false }: {
+  sistemas: Sis[]; planos: Plano[]; convites: Convite[];
+  // Todos os planos conhecidos (reais + modelos antigos) — só pra dar nome ao plano dos convites antigos.
+  todosPlanos?: Plano[];
+  abrir?: boolean;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(abrir);
   const [sis, setSis] = useState(sistemas[0]?.id || "");
   const [plano, setPlano] = useState("");
   const [empresa, setEmpresa] = useState("");
@@ -42,6 +51,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
   const [linkGerado, setLinkGerado] = useState("");
+  const [zapGerado, setZapGerado] = useState<string | null>(null);
   const [copiado, setCopiado] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -58,7 +68,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
   }
 
   async function gerar() {
-    setErr(""); setLinkGerado("");
+    setErr(""); setLinkGerado(""); setZapGerado(null);
     if (!sis || !plano || !empresa.trim() || !email.trim()) { setErr("Preencha sistema, plano, empresa e e-mail."); return; }
     setLoading(true);
     try {
@@ -68,7 +78,9 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
       });
       const j = await r.json();
       if (!r.ok) { setErr(j.error || "Não foi possível gerar."); setLoading(false); return; }
-      setLinkGerado(`${origin}/primeiro-acesso/${j.token}`);
+      const url = `${origin}/primeiro-acesso/${j.token}`;
+      setLinkGerado(url);
+      setZapGerado(linkWhatsApp(whatsapp, `Olá, ${empresa.trim()}! Seu acesso ao ${nomeDe(sis)} está pronto. Entre por este link para ativar seu teste grátis de ${trialDias} dias: ${url}`));
       setEmpresa(""); setEmail(""); setWhatsapp(""); setPlano("");
       router.refresh();
     } catch { setErr("Falha de conexão."); }
@@ -101,7 +113,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
   return (
     <>
       <Card
-        title="Gerar acesso — qualquer sistema"
+        title="Convites de primeiro acesso"
         hint="convite com termo de uso + teste grátis + pagamento self-serviço depois"
         action={
           <button type="button" onClick={() => { setOpen((v) => !v); setErr(""); setLinkGerado(""); }}
@@ -141,6 +153,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
                 <span style={{ fontSize: 12.5 }}>Convite gerado — mande este link pro cliente (WhatsApp, e-mail…):</span>
                 <code style={{ fontSize: 12, background: "var(--panel)", padding: "3px 7px", borderRadius: 6, wordBreak: "break-all" }}>{linkGerado}</code>
                 <button type="button" onClick={() => copiar(linkGerado, "novo")} style={aBtn}>{copiado === "novo" ? "Copiado!" : "Copiar"}</button>
+                {zapGerado && <a href={zapGerado} target="_blank" rel="noreferrer" className="act-btn good">Enviar no WhatsApp</a>}
               </div>
             )}
           </div>
@@ -156,18 +169,24 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
                 {convites.map((c) => {
                   const rest = c.status === "trial" ? diasRestantes(c.trialAte) : null;
                   const link = linkDe(c);
-                  const planoNome = planos.find((p) => p.id === c.planoId)?.nome || c.planoId;
+                  const planoNome = (todosPlanos || planos).find((p) => p.id === c.planoId)?.nome || c.planoId;
+                  const zap = link ? linkWhatsApp(c.whatsapp, c.status === "pendente"
+                    ? `Olá, ${c.empresaNome}! Seu acesso ao ${nomeDe(c.sistemaId)} está pronto. Entre por este link para ativar seu teste grátis: ${link.url}`
+                    : `Olá, ${c.empresaNome}! Para continuar usando o ${nomeDe(c.sistemaId)}, cadastre a forma de pagamento por este link: ${link.url}`) : null;
                   return (
                     <tr key={c.id}>
                       <td style={{ fontWeight: 600 }}>{c.empresaNome}<div style={{ fontSize: 11, color: "var(--faint)", fontWeight: 400 }}>{c.email}</div></td>
                       <td><span className="sys-tag"><span className="sd" style={{ background: corDe(c.sistemaId) }} />{nomeDe(c.sistemaId)}</span></td>
                       <td style={{ fontSize: 12.5 }}>{planoNome}</td>
                       <td><Pill s={statusPill[c.status]} label={statusLabel[c.status]} /></td>
-                      <td>{c.loginUsuario ? <span style={{ fontSize: 12, color: "var(--good)" }}>criado: {c.loginUsuario}</span> : <span style={{ fontSize: 12, color: "var(--faint)" }}>{c.sistemaId === "creator" ? "aguardando" : "manual"}</span>}</td>
+                      <td>{c.loginUsuario ? <span style={{ fontSize: 12, color: "var(--good)" }}>criado: {c.loginUsuario}</span> : <span style={{ fontSize: 12, color: "var(--faint)" }} title={AUTOMATICOS.includes(c.sistemaId) ? "o cliente cria o login sozinho no 1º acesso" : "esse sistema ainda não cria login automático — crie você e avise o cliente"}>{AUTOMATICOS.includes(c.sistemaId) ? "cliente cria no 1º acesso" : "criar manualmente"}</span>}</td>
                       <td className="r num">{rest != null ? `${rest}d` : "—"}</td>
                       <td>
                         {link ? (
-                          <button type="button" onClick={() => copiar(link.url, c.id)} style={aBtn}>{copiado === c.id ? "Copiado!" : `Copiar ${link.label}`}</button>
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            <button type="button" onClick={() => copiar(link.url, c.id)} style={aBtn}>{copiado === c.id ? "Copiado!" : `Copiar ${link.label}`}</button>
+                            {zap && <a href={zap} target="_blank" rel="noreferrer" className="act-btn good">WhatsApp</a>}
+                          </div>
                         ) : (
                           <span style={{ color: "var(--faint)", fontSize: 12 }}>—</span>
                         )}
@@ -186,7 +205,7 @@ export default function AcessosConvite({ sistemas, planos, convites }: { sistema
         )}
 
         <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--faint)" }}>
-          Sem envio automático de e-mail/WhatsApp ainda — o link é gerado aqui e você manda pro cliente manualmente. Quando o teste grátis acabar, o convite muda pra "teste acabou — sem pagamento" sozinho; copie o link de pagamento e mande de novo pra ele colocar o cartão.
+          Sem envio automático de e-mail ainda — o link é gerado aqui e você manda pro cliente (o botão WhatsApp já abre a conversa com a mensagem pronta quando o número foi informado). Quando o teste grátis acabar, o convite muda pra "teste acabou — sem pagamento" sozinho; copie o link de pagamento e mande de novo pra ele colocar o cartão.
         </div>
       </Card>
     </>
