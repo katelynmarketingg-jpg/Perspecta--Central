@@ -2,10 +2,11 @@ import { Icon } from "@/components/ui";
 import SistemaCard, { type SistemaCardData } from "@/components/SistemaCard";
 import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
-import { firebaseStatus, firebaseConfigured, getContagemContasBistro, getFirebaseSizeMb } from "@/lib/integrations/firebase";
+import { firebaseStatus, firebaseConfigured, getContagemContasBistro, getFirebaseSizeMb, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { supabaseConfigured, getContagemContas, getProjectDbSizeMb } from "@/lib/integrations/supabase";
 import { renderConfigured, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
 import { listarDetalhes } from "@/lib/sistema-detalhes";
+import { ultimoUsoPorEmpresa } from "@/lib/uso-consumo";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, nomeCurto } from "@/lib/format";
 
@@ -40,7 +41,7 @@ function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): 
 export default async function Infra() {
   const [sistemas, empresas] = await Promise.all([getSistemas(), getEmpresas()]);
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
-  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos, sharedDbMb, bistroMb, detalhes] = await Promise.all([
+  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos, sharedDbMb, bistroMb, detalhes, usoAcessos, bistroEst] = await Promise.all([
     creatorStatus(),
     firebaseStatus(),
     getCreatorReceita(),
@@ -50,14 +51,33 @@ export default async function Infra() {
     refSb && supabaseConfigured() ? getProjectDbSizeMb(refSb) : Promise.resolve(null),
     firebaseConfigured() ? getFirebaseSizeMb() : Promise.resolve(null),
     listarDetalhes(),
+    ultimoUsoPorEmpresa(),
+    firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
   ]);
   const mrrCreator = creatorRec.receita?.mrr ?? null;
 
   // Custo por GB padrão (sugestão) por provedor — ela ajusta por sistema depois.
   const GB_USD: Record<string, number> = { commerce: 0.125, juris: 0.125, hub: 0.125, creator: 0.25, bistro: 5, central: 0 };
   const custoPorGbPadrao = (id: string) => (GB_USD[id] ?? 0.125) * CAMBIO_USD_BRL;
-  // Uso real de armazenamento por sistema: Supabase (banco compartilhado) e Firebase.
+
+  // Armazenamento POR EMPRESA de cada sistema (visão multi-empresa):
+  //  - o que cada sistema reporta por empresa via uso.medido (metrica storage_gb);
+  //  - Bistro ao vivo: o tamanho do nó de cada estabelecimento no Firebase.
+  const breakdown: Record<string, { empresa: string; gb: number }[]> = {};
+  for (const u of usoAcessos.filter((x) => x.metrica === "storage_gb")) {
+    (breakdown[u.sistemaId] ||= []).push({ empresa: u.empresaRef || "—", gb: Number(u.valor) || 0 });
+  }
+  if (bistroEst && bistroEst.length) {
+    breakdown["bistro"] = bistroEst.map((e) => ({
+      empresa: e.nome,
+      gb: Buffer.byteLength(JSON.stringify(e.dados ?? {}), "utf8") / (1024 * 1024 * 1024),
+    }));
+  }
+  // Uso total do sistema: soma das empresas quando há desmembramento; senão o
+  // tamanho do banco (Supabase compartilhado) ou do Firebase como total.
   const usoGbDe = (id: string, supabaseRef: string | null): number | null => {
+    const bd = breakdown[id];
+    if (bd && bd.length) return Math.round(bd.reduce((a, x) => a + x.gb, 0) * 1000) / 1000;
     if (supabaseRef && sharedDbMb != null) return Math.round((sharedDbMb / 1024) * 100) / 100;
     if (id === "bistro" && bistroMb != null) return Math.round((bistroMb / 1024) * 100) / 100;
     return null;
@@ -126,6 +146,7 @@ export default async function Infra() {
             lucroText: lucroValor === null ? "a confirmar" : BRL(lucroValor),
             lucroCor: lucroValor === null ? "var(--warn)" : lucroValor > 0 ? "var(--good)" : lucroValor < 0 ? "var(--crit)" : "var(--muted)",
             usoGb, limiteGb, custoPorGbBrl: custoPorGb, armazCompartilhadoSupabase: Boolean(s.supabaseRef),
+            breakdown: (breakdown[s.id] || []).slice().sort((a, b) => b.gb - a.gb),
             tokenNome: det?.tokenNome ?? null, tokenExpira: det?.tokenExpira ?? false, tokenExpiraEm: det?.tokenExpiraEm ?? null,
             bugs: s.bugs.filter((b) => b.st !== "resolvido"),
           };
