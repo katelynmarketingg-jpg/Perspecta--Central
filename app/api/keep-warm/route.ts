@@ -54,6 +54,7 @@ async function aquecer(): Promise<Record<string, number>> {
     ["planos", pln.listarPlanosCentral()],
     ["uso", uso.ultimoUsoPorEmpresa()],
     ["detalhes", sdet.listarDetalhes()],
+    ["limitesEmpresa", sdet.listarLimitesEmpresa()],
   ];
   const out: Record<string, number> = {};
   await Promise.all(tarefas.map(async ([nome, p]) => {

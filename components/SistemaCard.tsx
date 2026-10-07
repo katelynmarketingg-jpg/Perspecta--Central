@@ -126,25 +126,9 @@ function Armazenamento(s: SistemaCardData) {
             <div style={{ padding: "7px 10px", background: "var(--panel)", fontSize: 11.5, fontWeight: 650, color: "var(--muted)", display: "flex", justifyContent: "space-between" }}>
               <span>Por empresa — quem usa quanto</span><span>{s.breakdown.length} empresa(s)</span>
             </div>
-            {s.breakdown.map((e, i) => {
-              const custoEmp = s.custoPorGbBrl != null ? e.gb * s.custoPorGbBrl : null;
-              // Barra = uso dentro do limite da empresa (quando tem); senão, fatia do total do sistema.
-              const temLimite = e.limite != null && e.limite > 0;
-              const pctEmp = temLimite ? Math.min(100, (e.gb / (e.limite as number)) * 100) : (s.usoGb ? Math.min(100, (e.gb / s.usoGb) * 100) : 0);
-              const corEmp = temLimite ? (pctEmp >= 100 ? "var(--crit)" : pctEmp >= 80 ? "var(--warn)" : "var(--good)") : s.cor;
-              return (
-                <div key={i} style={{ padding: "8px 10px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 4 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.empresa}</span>
-                    <span className="num" style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap" }}>
-                      {tam(e.gb)}{temLimite && <span style={{ color: "var(--muted)", fontWeight: 500 }}> de {tam(e.limite as number)}</span>}
-                      {custoEmp != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}> · {BRL(custoEmp)}</span>}
-                    </span>
-                  </div>
-                  <div className="hbar-track" style={{ height: 5 }}><div className="hbar-fill" style={{ width: pctEmp + "%", background: corEmp }} /></div>
-                </div>
-              );
-            })}
+            {s.breakdown.map((e, i) => (
+              <LinhaEmpresa key={i} sistemaId={s.id} cor={s.cor} custoPorGbBrl={s.custoPorGbBrl} usoGbSistema={s.usoGb} e={e} />
+            ))}
           </div>
         ) : (
           <div style={{ marginTop: 10, fontSize: 12, color: "var(--faint)" }}>
@@ -242,6 +226,62 @@ function TokenBox(s: SistemaCardData) {
         </div>
       </div>
     </Caixa>
+  );
+}
+
+// Uma empresa na lista de armazenamento: uso × limite (editável) + custo.
+function LinhaEmpresa({ sistemaId, cor, custoPorGbBrl, usoGbSistema, e }: {
+  sistemaId: string; cor: string; custoPorGbBrl: number | null; usoGbSistema: number | null;
+  e: { empresa: string; gb: number; limite: number | null };
+}) {
+  const router = useRouter();
+  const [editando, setEditando] = useState(false);
+  const [val, setVal] = useState(e.limite != null ? String(e.limite) : "");
+  const [saving, setSaving] = useState(false);
+
+  const custoEmp = custoPorGbBrl != null ? e.gb * custoPorGbBrl : null;
+  const temLimite = e.limite != null && e.limite > 0;
+  const pctEmp = temLimite ? Math.min(100, (e.gb / (e.limite as number)) * 100) : (usoGbSistema ? Math.min(100, (e.gb / usoGbSistema) * 100) : 0);
+  const corEmp = temLimite ? (pctEmp >= 100 ? "var(--crit)" : pctEmp >= 80 ? "var(--warn)" : "var(--good)") : cor;
+
+  async function salvar() {
+    setSaving(true);
+    try {
+      const r = await fetch("/api/sistemas/limite-empresa", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sistemaId, empresa: e.empresa, limiteGb: val === "" ? null : Number(val) }),
+      });
+      if (r.ok) { setEditando(false); router.refresh(); }
+    } catch {}
+    setSaving(false);
+  }
+
+  return (
+    <div style={{ padding: "8px 10px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.empresa}</span>
+        <span className="num" style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          {tam(e.gb)}{temLimite && <span style={{ color: "var(--muted)", fontWeight: 500 }}> de {tam(e.limite as number)}</span>}
+          {custoEmp != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}> · {BRL(custoEmp)}</span>}
+          <button type="button" onClick={() => setEditando((v) => !v)} title="Definir limite desta empresa"
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--faint)", padding: 0, display: "inline-flex" }}>
+            <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></svg>
+          </button>
+        </span>
+      </div>
+      <div className="hbar-track" style={{ height: 5 }}><div className="hbar-fill" style={{ width: pctEmp + "%", background: corEmp }} /></div>
+      {editando && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+          <span style={{ fontSize: 11.5, color: "var(--muted)" }}>Limite (GB):</span>
+          <input type="number" min={0} step="0.1" value={val} onChange={(ev) => setVal(ev.target.value)}
+            style={{ ...inp, width: 90, padding: "5px 8px" }} placeholder="ex.: 5" />
+          <button type="button" onClick={salvar} disabled={saving}
+            style={{ background: cor, color: "#fff", border: "none", borderRadius: 7, padding: "5px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+            {saving ? "…" : "Salvar"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
