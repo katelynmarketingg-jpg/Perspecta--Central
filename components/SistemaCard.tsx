@@ -18,6 +18,7 @@ export type SistemaCardData = {
   // Armazenamento
   usoGb: number | null; limiteGb: number | null; custoPorGbBrl: number | null;
   armazCompartilhadoSupabase: boolean;
+  breakdown: { empresa: string; gb: number }[];
   // Token
   tokenNome: string | null; tokenExpira: boolean; tokenExpiraEm: string | null;
   bugs: { sev: string; t: string; d: string; st: string }[];
@@ -38,6 +39,15 @@ function Linha({ k, children }: { k: string; children: React.ReactNode }) {
 }
 
 const GB = (n: number | null) => (n == null ? "—" : `${n % 1 === 0 ? n : n.toFixed(2)} GB`);
+
+// Tamanho humano: GB, ou MB/KB quando é pouco (ex.: nós do Firebase por empresa).
+function tam(gb: number): string {
+  if (gb >= 1) return `${gb.toFixed(2)} GB`;
+  const mb = gb * 1024;
+  if (mb >= 1) return `${mb.toFixed(mb >= 10 ? 0 : 1)} MB`;
+  const kb = mb * 1024;
+  return `${kb.toFixed(0)} KB`;
+}
 
 // Caixa clicável com cabeçalho (resumo) + detalhe/edição ao abrir.
 function Caixa({ cor, titulo, resumo, children }: { cor: string; titulo: string; resumo: React.ReactNode; children: React.ReactNode }) {
@@ -107,6 +117,32 @@ function Armazenamento(s: SistemaCardData) {
           <div style={{ fontSize: 12, color: "var(--muted)" }}>
             {s.usoGb != null ? <>Uso atual: <b style={{ color: "var(--text)" }}>{GB(s.usoGb)}</b>. </> : "Uso não medido para este sistema. "}
             Defina o limite comprado abaixo para ver quanto custa e o quanto está sendo usado.
+          </div>
+        )}
+
+        {/* Desmembramento por empresa: quem usa quanto (e quanto custa) */}
+        {s.breakdown.length > 0 ? (
+          <div style={{ marginTop: 12, border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ padding: "7px 10px", background: "var(--panel)", fontSize: 11.5, fontWeight: 650, color: "var(--muted)", display: "flex", justifyContent: "space-between" }}>
+              <span>Por empresa — quem usa quanto</span><span>{s.breakdown.length} empresa(s)</span>
+            </div>
+            {s.breakdown.map((e, i) => {
+              const custoEmp = s.custoPorGbBrl != null ? e.gb * s.custoPorGbBrl : null;
+              const pctEmp = s.usoGb ? Math.min(100, (e.gb / s.usoGb) * 100) : 0;
+              return (
+                <div key={i} style={{ padding: "8px 10px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 4 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.empresa}</span>
+                    <span className="num" style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap" }}>{tam(e.gb)}{custoEmp != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}> · {BRL(custoEmp)}</span>}</span>
+                  </div>
+                  <div className="hbar-track" style={{ height: 5 }}><div className="hbar-fill" style={{ width: pctEmp + "%", background: s.cor }} /></div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ marginTop: 10, fontSize: 12, color: "var(--faint)" }}>
+            Desmembramento por empresa aparece quando o sistema reportar o uso de cada cliente (evento <b>uso.medido</b>). O Bistro já mostra ao vivo.
           </div>
         )}
 
