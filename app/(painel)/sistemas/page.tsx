@@ -63,14 +63,15 @@ export default async function Infra() {
   // Armazenamento POR EMPRESA de cada sistema (visão multi-empresa):
   //  - o que cada sistema reporta por empresa via uso.medido (metrica storage_gb);
   //  - Bistro ao vivo: o tamanho do nó de cada estabelecimento no Firebase.
-  const breakdown: Record<string, { empresa: string; gb: number }[]> = {};
+  const breakdown: Record<string, { empresa: string; gb: number; limite: number | null }[]> = {};
   for (const u of usoAcessos.filter((x) => x.metrica === "storage_gb")) {
-    (breakdown[u.sistemaId] ||= []).push({ empresa: u.empresaRef || "—", gb: Number(u.valor) || 0 });
+    (breakdown[u.sistemaId] ||= []).push({ empresa: u.empresaRef || "—", gb: Number(u.valor) || 0, limite: u.limite != null ? Number(u.limite) : null });
   }
   if (bistroEst && bistroEst.length) {
     breakdown["bistro"] = bistroEst.map((e) => ({
       empresa: e.nome,
       gb: Buffer.byteLength(JSON.stringify(e.dados ?? {}), "utf8") / (1024 * 1024 * 1024),
+      limite: null,
     }));
   }
   // Uso total do sistema: soma das empresas quando há desmembramento; senão o
