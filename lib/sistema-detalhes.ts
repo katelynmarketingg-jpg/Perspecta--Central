@@ -7,11 +7,12 @@ import { runSupabaseQuery, supabaseConfigured } from "./integrations/supabase";
 
 export type SistemaDetalhe = {
   sistemaId: string;
-  limiteGb: number | null;        // quanto de armazenamento está disponível (comprado)
-  custoPorGbBrl: number | null;   // quanto custa cada GB/mês (R$)
-  tokenNome: string | null;       // ex.: "SUPABASE_MANAGEMENT_TOKEN"
-  tokenExpira: boolean;           // true = expira; false = vitalício
-  tokenExpiraEm: string | null;   // data (YYYY-MM-DD) quando expira
+  limiteGb: number | null;            // quanto de armazenamento está disponível (comprado)
+  custoPorGbBrl: number | null;       // preço por GB COBRADO do cliente (R$)
+  custoRealPorGbBrl: number | null;   // quanto cada GB custa PRA VOCÊ (pago ao provedor)
+  tokenNome: string | null;           // ex.: "SUPABASE_MANAGEMENT_TOKEN"
+  tokenExpira: boolean;               // true = expira; false = vitalício
+  tokenExpiraEm: string | null;       // data (YYYY-MM-DD) quando expira
   atualizadoEm: string | null;
 };
 
@@ -32,7 +33,8 @@ async function ensure(r: string) {
       token_expira boolean not null default false,
       token_expira_em date,
       atualizado_em timestamptz not null default now()
-    );`);
+    );
+    alter table central.sistema_detalhes add column if not exists custo_real_por_gb_brl numeric;`);
 }
 
 function fromRow(x: any): SistemaDetalhe {
@@ -40,6 +42,7 @@ function fromRow(x: any): SistemaDetalhe {
     sistemaId: String(x.sistema_id),
     limiteGb: x.limite_gb != null ? Number(x.limite_gb) : null,
     custoPorGbBrl: x.custo_por_gb_brl != null ? Number(x.custo_por_gb_brl) : null,
+    custoRealPorGbBrl: x.custo_real_por_gb_brl != null ? Number(x.custo_real_por_gb_brl) : null,
     tokenNome: x.token_nome ?? null,
     tokenExpira: Boolean(x.token_expira),
     tokenExpiraEm: x.token_expira_em ? String(x.token_expira_em).slice(0, 10) : null,
@@ -51,7 +54,7 @@ async function _listarDetalhes(): Promise<Record<string, SistemaDetalhe>> {
   const r = await ref();
   if (!r) return {};
   await ensure(r);
-  const rows = await runSupabaseQuery(r, `select sistema_id, limite_gb, custo_por_gb_brl, token_nome, token_expira, token_expira_em, atualizado_em from central.sistema_detalhes;`);
+  const rows = await runSupabaseQuery(r, `select sistema_id, limite_gb, custo_por_gb_brl, custo_real_por_gb_brl, token_nome, token_expira, token_expira_em, atualizado_em from central.sistema_detalhes;`);
   const out: Record<string, SistemaDetalhe> = {};
   for (const x of rows || []) { const d = fromRow(x); out[d.sistemaId] = d; }
   return out;
@@ -99,7 +102,7 @@ export async function salvarLimiteEmpresa(sistemaId: string, empresaRef: string,
 }
 
 export async function salvarDetalhe(input: {
-  sistemaId: string; limiteGb?: number | null; custoPorGbBrl?: number | null;
+  sistemaId: string; limiteGb?: number | null; custoPorGbBrl?: number | null; custoRealPorGbBrl?: number | null;
   tokenNome?: string | null; tokenExpira?: boolean; tokenExpiraEm?: string | null;
 }): Promise<{ ok: boolean; erro?: string }> {
   const r = await ref();
@@ -109,17 +112,21 @@ export async function salvarDetalhe(input: {
   await ensure(r);
   const num = (v: number | null | undefined) => (v == null || !Number.isFinite(Number(v)) ? "null" : String(Number(v)));
   const txt = (v: string | null | undefined) => (v == null || v === "" ? "null" : `'${String(v).replace(/'/g, "''").slice(0, 120)}'`);
-  const data = input.tokenExpiraEm && /^\d{4}-\d{2}-\d{2}$/.test(input.tokenExpiraEm) ? `'${input.tokenExpiraEm}'` : "null";
-  const expira = input.tokenExpira ? "true" : "false";
+  // Atualização PARCIAL: só mexe nas colunas que vieram no input — assim salvar
+  // o armazenamento não apaga o token, e vice-versa.
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(input, k);
+  const cols: string[] = []; const vals: string[] = []; const sets: string[] = [];
+  const add = (col: string, sqlVal: string) => { cols.push(col); vals.push(sqlVal); sets.push(`${col} = excluded.${col}`); };
+  if (has("limiteGb")) add("limite_gb", num(input.limiteGb));
+  if (has("custoPorGbBrl")) add("custo_por_gb_brl", num(input.custoPorGbBrl));
+  if (has("custoRealPorGbBrl")) add("custo_real_por_gb_brl", num(input.custoRealPorGbBrl));
+  if (has("tokenNome")) add("token_nome", txt(input.tokenNome));
+  if (has("tokenExpira")) add("token_expira", input.tokenExpira ? "true" : "false");
+  if (has("tokenExpiraEm")) add("token_expira_em", input.tokenExpiraEm && /^\d{4}-\d{2}-\d{2}$/.test(input.tokenExpiraEm) ? `'${input.tokenExpiraEm}'` : "null");
+  if (cols.length === 0) return { ok: true };
   const res = await runSupabaseQuery(r, `
-    insert into central.sistema_detalhes (sistema_id, limite_gb, custo_por_gb_brl, token_nome, token_expira, token_expira_em, atualizado_em)
-    values ('${sid}', ${num(input.limiteGb)}, ${num(input.custoPorGbBrl)}, ${txt(input.tokenNome)}, ${expira}, ${data}, now())
-    on conflict (sistema_id) do update set
-      limite_gb = excluded.limite_gb,
-      custo_por_gb_brl = excluded.custo_por_gb_brl,
-      token_nome = excluded.token_nome,
-      token_expira = excluded.token_expira,
-      token_expira_em = excluded.token_expira_em,
-      atualizado_em = now();`);
+    insert into central.sistema_detalhes (sistema_id, ${cols.join(", ")}, atualizado_em)
+    values ('${sid}', ${vals.join(", ")}, now())
+    on conflict (sistema_id) do update set ${sets.join(", ")}, atualizado_em = now();`);
   return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível salvar." };
 }

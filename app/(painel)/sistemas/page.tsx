@@ -141,7 +141,8 @@ export default async function Infra() {
           const det = detalhes[s.id];
           const usoGb = usoGbDe(s.id, s.supabaseRef);
           const limiteGb = det?.limiteGb ?? null;
-          const custoPorGb = det?.custoPorGbBrl ?? custoPorGbPadrao(s.id);
+          const custoPorGb = det?.custoPorGbBrl ?? custoPorGbPadrao(s.id);        // preço cobrado do cliente
+          const custoRealPorGb = det?.custoRealPorGbBrl ?? custoPorGbPadrao(s.id); // meu custo real (pago)
           const data: SistemaCardData = {
             id: s.id, cor: s.cor, inicial: nomeCurto(s.nome)[0] || "?", nome: s.nome, url: s.url,
             statusDot: dotColor(status), statusPill: status, source,
@@ -154,7 +155,7 @@ export default async function Infra() {
             custoCor: custoValor === null ? "var(--warn)" : custoValor === 0 ? "var(--good)" : "var(--text)",
             lucroText: lucroValor === null ? "a confirmar" : BRL(lucroValor),
             lucroCor: lucroValor === null ? "var(--warn)" : lucroValor > 0 ? "var(--good)" : lucroValor < 0 ? "var(--crit)" : "var(--muted)",
-            usoGb, limiteGb, custoPorGbBrl: custoPorGb, armazCompartilhadoSupabase: Boolean(s.supabaseRef),
+            usoGb, limiteGb, custoPorGbBrl: custoPorGb, custoRealPorGbBrl: custoRealPorGb, armazCompartilhadoSupabase: Boolean(s.supabaseRef),
             breakdown: (breakdown[s.id] || []).slice().sort((a, b) => b.gb - a.gb),
             tokenNome: det?.tokenNome ?? null, tokenExpira: det?.tokenExpira ?? false, tokenExpiraEm: det?.tokenExpiraEm ?? null,
             bugs: s.bugs.filter((b) => b.st !== "resolvido"),

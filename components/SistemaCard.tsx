@@ -16,7 +16,7 @@ export type SistemaCardData = {
   custoText: string; custoCor: string;
   lucroText: string; lucroCor: string;
   // Armazenamento
-  usoGb: number | null; limiteGb: number | null; custoPorGbBrl: number | null;
+  usoGb: number | null; limiteGb: number | null; custoPorGbBrl: number | null; custoRealPorGbBrl: number | null;
   armazCompartilhadoSupabase: boolean;
   breakdown: { empresa: string; gb: number; limite: number | null }[];
   // Token
@@ -73,18 +73,22 @@ function Armazenamento(s: SistemaCardData) {
   const router = useRouter();
   const [limite, setLimite] = useState(s.limiteGb != null ? String(s.limiteGb) : "");
   const [custoGb, setCustoGb] = useState(s.custoPorGbBrl != null ? String(s.custoPorGbBrl) : "");
+  const [custoRealGb, setCustoRealGb] = useState(s.custoRealPorGbBrl != null ? String(s.custoRealPorGbBrl) : "");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
 
   const limiteN = Number(limite) || 0;
-  const custoGbN = Number(custoGb) || 0;
-  const custoNovo = limiteN * custoGbN;
-  const custoAtual = s.limiteGb != null && s.custoPorGbBrl != null ? s.limiteGb * s.custoPorGbBrl : null;
+  const custoGbN = Number(custoGb) || 0;         // preço cobrado/GB
+  const custoRealGbN = Number(custoRealGb) || 0; // meu custo/GB
+  const cobradoNovo = limiteN * custoGbN;
+  const meuCustoNovo = limiteN * custoRealGbN;
+  const custoAtual = s.limiteGb != null && s.custoPorGbBrl != null ? s.limiteGb * s.custoPorGbBrl : null;      // cobrado (hoje)
+  const meuCustoAtual = s.limiteGb != null && s.custoRealPorGbBrl != null ? s.limiteGb * s.custoRealPorGbBrl : null; // meu (hoje)
   const pct = s.usoGb != null && s.limiteGb ? Math.min(100, (s.usoGb / s.limiteGb) * 100) : null;
   const corBarra = pct == null ? "var(--muted)" : pct >= 100 ? "var(--crit)" : pct >= 80 ? "var(--warn)" : "var(--good)";
 
   const resumo = s.limiteGb != null
-    ? <><span>{GB(s.usoGb)} / {GB(s.limiteGb)}</span>{custoAtual != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}>· {BRL(custoAtual)}/mês</span>}</>
+    ? <><span>{GB(s.usoGb)} / {GB(s.limiteGb)}</span>{meuCustoAtual != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}>· meu {BRL(meuCustoAtual)}/mês</span>}</>
     : <span style={{ color: "var(--warn)" }}>definir limite</span>;
 
   async function salvar() {
@@ -92,7 +96,7 @@ function Armazenamento(s: SistemaCardData) {
     try {
       const r = await fetch("/api/sistemas/detalhes", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sistemaId: s.id, limiteGb: limite === "" ? null : limiteN, custoPorGbBrl: custoGb === "" ? null : custoGbN }),
+        body: JSON.stringify({ sistemaId: s.id, limiteGb: limite === "" ? null : limiteN, custoPorGbBrl: custoGb === "" ? null : custoGbN, custoRealPorGbBrl: custoRealGb === "" ? null : custoRealGbN }),
       });
       const j = await r.json();
       if (!r.ok) { setMsg(j.error || "Não foi possível salvar."); setSaving(false); return; }
@@ -109,7 +113,7 @@ function Armazenamento(s: SistemaCardData) {
             <div className="hbar-track" style={{ height: 8 }}><div className="hbar-fill" style={{ width: pct + "%", background: corBarra }} /></div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
               Usando <b style={{ color: "var(--text)" }}>{GB(s.usoGb)}</b> de <b>{GB(s.limiteGb)}</b> ({pct.toFixed(0)}%).
-              {custoAtual != null && <> Esse limite custa <b style={{ color: "var(--text)" }}>{BRL(custoAtual)}/mês</b>.</>}
+              {meuCustoAtual != null && <> Esse limite te custa <b style={{ color: "var(--text)" }}>{BRL(meuCustoAtual)}/mês</b>{custoAtual != null && <> (cobrando {BRL(custoAtual)})</>}.</>}
               {s.armazCompartilhadoSupabase && <span style={{ color: "var(--faint)" }}> Uso lido do banco Supabase (compartilhado entre os sistemas que usam esse banco).</span>}
             </div>
           </>
@@ -127,7 +131,7 @@ function Armazenamento(s: SistemaCardData) {
               <span>Por empresa — quem usa quanto</span><span>{s.breakdown.length} empresa(s)</span>
             </div>
             {s.breakdown.map((e, i) => (
-              <LinhaEmpresa key={i} sistemaId={s.id} cor={s.cor} custoPorGbBrl={s.custoPorGbBrl} usoGbSistema={s.usoGb} e={e} />
+              <LinhaEmpresa key={i} sistemaId={s.id} cor={s.cor} custoPorGbBrl={s.custoRealPorGbBrl} usoGbSistema={s.usoGb} e={e} />
             ))}
           </div>
         ) : (
@@ -136,13 +140,17 @@ function Armazenamento(s: SistemaCardData) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginTop: 12 }}>
           <div><label style={lbl}>Limite comprado (GB)</label><input style={inp} type="number" min={0} value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="ex.: 20" /></div>
-          <div><label style={lbl}>Custo por GB (R$/mês)</label><input style={inp} type="number" min={0} step="0.01" value={custoGb} onChange={(e) => setCustoGb(e.target.value)} placeholder="ex.: 0,67" /></div>
+          <div><label style={lbl}>Meu custo por GB (R$)</label><input style={inp} type="number" min={0} step="0.01" value={custoRealGb} onChange={(e) => setCustoRealGb(e.target.value)} placeholder="ex.: 0,67" /></div>
+          <div><label style={lbl}>Preço por GB cobrado (R$)</label><input style={inp} type="number" min={0} step="0.01" value={custoGb} onChange={(e) => setCustoGb(e.target.value)} placeholder="ex.: 2,00" /></div>
         </div>
-        <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8 }}>
-          Com <b style={{ color: "var(--text)" }}>{limiteN || 0} GB</b> a {BRL(custoGbN)}/GB, o custo fica <b style={{ color: s.cor }}>{BRL(custoNovo)}/mês</b>.
-          {custoAtual != null && custoNovo !== custoAtual && <> (hoje: {BRL(custoAtual)})</>}
+        <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8, lineHeight: 1.6 }}>
+          Com <b style={{ color: "var(--text)" }}>{limiteN || 0} GB</b>:{" "}
+          <b style={{ color: "var(--crit)" }}>meu custo {BRL(meuCustoNovo)}/mês</b> ·{" "}
+          <b style={{ color: "var(--good)" }}>cobrando {BRL(cobradoNovo)}/mês</b>
+          {cobradoNovo - meuCustoNovo !== 0 && <> · margem <b style={{ color: cobradoNovo - meuCustoNovo >= 0 ? "var(--good)" : "var(--crit)" }}>{BRL(cobradoNovo - meuCustoNovo)}/mês</b></>}
+          {meuCustoAtual != null && meuCustoNovo !== meuCustoAtual && <span style={{ color: "var(--faint)" }}> (meu custo hoje: {BRL(meuCustoAtual)})</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
           <button type="button" onClick={salvar} disabled={saving}
