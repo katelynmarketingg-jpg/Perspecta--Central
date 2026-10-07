@@ -58,6 +58,46 @@ async function _listarDetalhes(): Promise<Record<string, SistemaDetalhe>> {
 }
 export const listarDetalhes = unstable_cache(_listarDetalhes, ["sistema-detalhes-v1"], { revalidate: 300, tags: ["sistemas-detalhes"] });
 
+// ——— Limite de armazenamento POR EMPRESA (a dona define por cliente) ———
+async function ensureLimites(r: string) {
+  await runSupabaseQuery(r, `
+    create schema if not exists central;
+    create table if not exists central.empresa_limites (
+      sistema_id text not null,
+      empresa_ref text not null,
+      limite_gb numeric,
+      atualizado_em timestamptz not null default now(),
+      primary key (sistema_id, empresa_ref)
+    );`);
+}
+
+// Mapa keyed "sistema::empresa" -> limite em GB.
+async function _listarLimitesEmpresa(): Promise<Record<string, number>> {
+  const r = await ref();
+  if (!r) return {};
+  await ensureLimites(r);
+  const rows = await runSupabaseQuery(r, `select sistema_id, empresa_ref, limite_gb from central.empresa_limites where limite_gb is not null;`);
+  const out: Record<string, number> = {};
+  for (const x of rows || []) out[`${x.sistema_id}::${x.empresa_ref}`] = Number(x.limite_gb) || 0;
+  return out;
+}
+export const listarLimitesEmpresa = unstable_cache(_listarLimitesEmpresa, ["empresa-limites-v1"], { revalidate: 300, tags: ["sistemas-detalhes"] });
+
+export async function salvarLimiteEmpresa(sistemaId: string, empresaRef: string, limiteGb: number | null): Promise<{ ok: boolean; erro?: string }> {
+  const r = await ref();
+  if (!r) return { ok: false, erro: "Supabase não configurado." };
+  const sid = (sistemaId || "").replace(/[^a-z0-9_-]/gi, "");
+  const emp = String(empresaRef || "").replace(/'/g, "''").slice(0, 160);
+  if (!sid || !emp) return { ok: false, erro: "Sistema/empresa inválidos." };
+  await ensureLimites(r);
+  const val = limiteGb == null || !Number.isFinite(Number(limiteGb)) ? "null" : String(Number(limiteGb));
+  const res = await runSupabaseQuery(r, `
+    insert into central.empresa_limites (sistema_id, empresa_ref, limite_gb, atualizado_em)
+    values ('${sid}', '${emp}', ${val}, now())
+    on conflict (sistema_id, empresa_ref) do update set limite_gb = excluded.limite_gb, atualizado_em = now();`);
+  return res !== null ? { ok: true } : { ok: false, erro: "Não foi possível salvar." };
+}
+
 export async function salvarDetalhe(input: {
   sistemaId: string; limiteGb?: number | null; custoPorGbBrl?: number | null;
   tokenNome?: string | null; tokenExpira?: boolean; tokenExpiraEm?: string | null;

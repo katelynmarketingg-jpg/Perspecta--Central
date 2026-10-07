@@ -5,7 +5,7 @@ import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
 import { firebaseStatus, firebaseConfigured, getContagemContasBistro, getFirebaseSizeMb, getBistroEstabelecimentos } from "@/lib/integrations/firebase";
 import { supabaseConfigured, getContagemContas, getProjectDbSizeMb } from "@/lib/integrations/supabase";
 import { renderConfigured, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
-import { listarDetalhes } from "@/lib/sistema-detalhes";
+import { listarDetalhes, listarLimitesEmpresa } from "@/lib/sistema-detalhes";
 import { ultimoUsoPorEmpresa } from "@/lib/uso-consumo";
 import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, nomeCurto } from "@/lib/format";
@@ -41,7 +41,7 @@ function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): 
 export default async function Infra() {
   const [sistemas, empresas] = await Promise.all([getSistemas(), getEmpresas()]);
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
-  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos, sharedDbMb, bistroMb, detalhes, usoAcessos, bistroEst] = await Promise.all([
+  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos, sharedDbMb, bistroMb, detalhes, usoAcessos, bistroEst, limitesEmpresa] = await Promise.all([
     creatorStatus(),
     firebaseStatus(),
     getCreatorReceita(),
@@ -53,6 +53,7 @@ export default async function Infra() {
     listarDetalhes(),
     ultimoUsoPorEmpresa(),
     firebaseConfigured() ? getBistroEstabelecimentos() : Promise.resolve(null),
+    listarLimitesEmpresa(),
   ]);
   const mrrCreator = creatorRec.receita?.mrr ?? null;
 
@@ -73,6 +74,13 @@ export default async function Infra() {
       gb: Buffer.byteLength(JSON.stringify(e.dados ?? {}), "utf8") / (1024 * 1024 * 1024),
       limite: null,
     }));
+  }
+  // O limite que a dona definiu por empresa tem prioridade sobre o reportado pelo plano.
+  for (const sid of Object.keys(breakdown)) {
+    for (const e of breakdown[sid]) {
+      const def = limitesEmpresa[`${sid}::${e.empresa}`];
+      if (def != null) e.limite = def;
+    }
   }
   // Uso total do sistema: soma das empresas quando há desmembramento; senão o
   // tamanho do banco (Supabase compartilhado) ou do Firebase como total.
