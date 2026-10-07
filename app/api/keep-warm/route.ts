@@ -36,6 +36,7 @@ async function aquecer(): Promise<Record<string, number>> {
   const des = await import("@/lib/despesas");
   const pln = await import("@/lib/planos-central");
   const uso = await import("@/lib/uso-consumo");
+  const sdet = await import("@/lib/sistema-detalhes");
   const tarefas: [string, Promise<any>][] = [
     ["sistemas", data.getSistemas()],
     ["empresas", data.getEmpresas()],
@@ -52,6 +53,7 @@ async function aquecer(): Promise<Record<string, number>> {
     ["despesas", des.listarDespesas()],
     ["planos", pln.listarPlanosCentral()],
     ["uso", uso.ultimoUsoPorEmpresa()],
+    ["detalhes", sdet.listarDetalhes()],
   ];
   const out: Record<string, number> = {};
   await Promise.all(tarefas.map(async ([nome, p]) => {

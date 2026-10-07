@@ -2,9 +2,11 @@ import { Icon } from "@/components/ui";
 import SistemaCard, { type SistemaCardData } from "@/components/SistemaCard";
 import { getSistemas, getEmpresas, receitaSistema } from "@/lib/data";
 import { creatorStatus, getCreatorReceita } from "@/lib/integrations/creator";
-import { firebaseStatus, firebaseConfigured, getContagemContasBistro } from "@/lib/integrations/firebase";
-import { supabaseConfigured, getContagemContas } from "@/lib/integrations/supabase";
+import { firebaseStatus, firebaseConfigured, getContagemContasBistro, getFirebaseSizeMb } from "@/lib/integrations/firebase";
+import { supabaseConfigured, getContagemContas, getProjectDbSizeMb } from "@/lib/integrations/supabase";
 import { renderConfigured, getRenderCustos, BRL_POR_USD, type RenderCusto } from "@/lib/integrations/render";
+import { listarDetalhes } from "@/lib/sistema-detalhes";
+import { CAMBIO_USD_BRL } from "@/lib/precos";
 import { BRL, nomeCurto } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -38,15 +40,28 @@ function custoInfra(host: string, publicado: boolean, rc?: RenderCusto | null): 
 export default async function Infra() {
   const [sistemas, empresas] = await Promise.all([getSistemas(), getEmpresas()]);
   const refSb = sistemas.find((s) => s.supabaseRef)?.supabaseRef || null;
-  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos] = await Promise.all([
+  const [creatorSt, fireSt, creatorRec, contasSb, bistroContas, renderCustos, sharedDbMb, bistroMb, detalhes] = await Promise.all([
     creatorStatus(),
     firebaseStatus(),
     getCreatorReceita(),
     refSb && supabaseConfigured() ? getContagemContas(refSb) : Promise.resolve({ juris: null, commerce: null, candidatas: [] as any[] }),
     firebaseConfigured() ? getContagemContasBistro() : Promise.resolve({ n: null, candidatos: [] as any[] }),
     renderConfigured() ? getRenderCustos().then((r) => r.custos) : Promise.resolve(null),
+    refSb && supabaseConfigured() ? getProjectDbSizeMb(refSb) : Promise.resolve(null),
+    firebaseConfigured() ? getFirebaseSizeMb() : Promise.resolve(null),
+    listarDetalhes(),
   ]);
   const mrrCreator = creatorRec.receita?.mrr ?? null;
+
+  // Custo por GB padrão (sugestão) por provedor — ela ajusta por sistema depois.
+  const GB_USD: Record<string, number> = { commerce: 0.125, juris: 0.125, hub: 0.125, creator: 0.25, bistro: 5, central: 0 };
+  const custoPorGbPadrao = (id: string) => (GB_USD[id] ?? 0.125) * CAMBIO_USD_BRL;
+  // Uso real de armazenamento por sistema: Supabase (banco compartilhado) e Firebase.
+  const usoGbDe = (id: string, supabaseRef: string | null): number | null => {
+    if (supabaseRef && sharedDbMb != null) return Math.round((sharedDbMb / 1024) * 100) / 100;
+    if (id === "bistro" && bistroMb != null) return Math.round((bistroMb / 1024) * 100) / 100;
+    return null;
+  };
 
   // "Contas" (empresas que pagam/usam) por sistema, de fontes reais.
   const contasPorSistema: Record<string, number | null> = {
@@ -93,6 +108,11 @@ export default async function Infra() {
           const custo = custoInfra(s.host, true, s.host === "Render" ? renderCustoDoSistema(s.url) : null);
           const custoValor = custo.valor; // null = a confirmar
           const lucroValor = custoValor == null ? null : mrr - custoValor;
+          // Armazenamento: uso real (onde dá) × limite comprado (ela define) × custo/GB.
+          const det = detalhes[s.id];
+          const usoGb = usoGbDe(s.id, s.supabaseRef);
+          const limiteGb = det?.limiteGb ?? null;
+          const custoPorGb = det?.custoPorGbBrl ?? custoPorGbPadrao(s.id);
           const data: SistemaCardData = {
             id: s.id, cor: s.cor, inicial: nomeCurto(s.nome)[0] || "?", nome: s.nome, url: s.url,
             statusDot: dotColor(status), statusPill: status, source,
@@ -105,6 +125,8 @@ export default async function Infra() {
             custoCor: custoValor === null ? "var(--warn)" : custoValor === 0 ? "var(--good)" : "var(--text)",
             lucroText: lucroValor === null ? "a confirmar" : BRL(lucroValor),
             lucroCor: lucroValor === null ? "var(--warn)" : lucroValor > 0 ? "var(--good)" : lucroValor < 0 ? "var(--crit)" : "var(--muted)",
+            usoGb, limiteGb, custoPorGbBrl: custoPorGb, armazCompartilhadoSupabase: Boolean(s.supabaseRef),
+            tokenNome: det?.tokenNome ?? null, tokenExpira: det?.tokenExpira ?? false, tokenExpiraEm: det?.tokenExpiraEm ?? null,
             bugs: s.bugs.filter((b) => b.st !== "resolvido"),
           };
           return <SistemaCard key={s.id} {...data} />;

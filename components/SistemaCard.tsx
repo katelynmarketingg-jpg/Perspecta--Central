@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Pill, SourceTag } from "@/components/ui";
+import { BRL } from "@/lib/format";
 import type { Source } from "@/lib/types";
 
 export type SistemaCardData = {
@@ -13,8 +15,19 @@ export type SistemaCardData = {
   ultimoDeploy: string | null; bancoNome: string; bancoCor: string;
   custoText: string; custoCor: string;
   lucroText: string; lucroCor: string;
+  // Armazenamento
+  usoGb: number | null; limiteGb: number | null; custoPorGbBrl: number | null;
+  armazCompartilhadoSupabase: boolean;
+  // Token
+  tokenNome: string | null; tokenExpira: boolean; tokenExpiraEm: string | null;
   bugs: { sev: string; t: string; d: string; st: string }[];
 };
+
+const inp: React.CSSProperties = {
+  background: "var(--panel)", border: "1px solid var(--border)", borderRadius: 8,
+  padding: "7px 10px", color: "var(--text)", fontSize: 13, width: "100%",
+};
+const lbl: React.CSSProperties = { fontSize: 11, color: "var(--muted)", fontWeight: 550, display: "block", marginBottom: 4 };
 
 function Linha({ k, children }: { k: string; children: React.ReactNode }) {
   return (
@@ -24,8 +37,178 @@ function Linha({ k, children }: { k: string; children: React.ReactNode }) {
   );
 }
 
+const GB = (n: number | null) => (n == null ? "—" : `${n % 1 === 0 ? n : n.toFixed(2)} GB`);
+
+// Caixa clicável com cabeçalho (resumo) + detalhe/edição ao abrir.
+function Caixa({ cor, titulo, resumo, children }: { cor: string; titulo: string; resumo: React.ReactNode; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+      <button type="button" onClick={() => setOpen((v) => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, width: "100%", background: "transparent", border: "none", padding: "10px 12px", cursor: "pointer", color: "var(--text)", textAlign: "left" }}>
+        <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>{titulo}</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 650 }}>
+          {resumo}
+          <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={2} style={{ color: "var(--faint)", transform: open ? "rotate(180deg)" : "none", transition: "transform .15s ease" }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
+      {open && <div style={{ padding: "0 12px 12px", borderTop: "1px solid var(--border)" }}>{children}</div>}
+    </div>
+  );
+}
+
+function Armazenamento(s: SistemaCardData) {
+  const router = useRouter();
+  const [limite, setLimite] = useState(s.limiteGb != null ? String(s.limiteGb) : "");
+  const [custoGb, setCustoGb] = useState(s.custoPorGbBrl != null ? String(s.custoPorGbBrl) : "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const limiteN = Number(limite) || 0;
+  const custoGbN = Number(custoGb) || 0;
+  const custoNovo = limiteN * custoGbN;
+  const custoAtual = s.limiteGb != null && s.custoPorGbBrl != null ? s.limiteGb * s.custoPorGbBrl : null;
+  const pct = s.usoGb != null && s.limiteGb ? Math.min(100, (s.usoGb / s.limiteGb) * 100) : null;
+  const corBarra = pct == null ? "var(--muted)" : pct >= 100 ? "var(--crit)" : pct >= 80 ? "var(--warn)" : "var(--good)";
+
+  const resumo = s.limiteGb != null
+    ? <><span>{GB(s.usoGb)} / {GB(s.limiteGb)}</span>{custoAtual != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}>· {BRL(custoAtual)}/mês</span>}</>
+    : <span style={{ color: "var(--warn)" }}>definir limite</span>;
+
+  async function salvar() {
+    setMsg(""); setSaving(true);
+    try {
+      const r = await fetch("/api/sistemas/detalhes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sistemaId: s.id, limiteGb: limite === "" ? null : limiteN, custoPorGbBrl: custoGb === "" ? null : custoGbN }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error || "Não foi possível salvar."); setSaving(false); return; }
+      setMsg("Salvo!"); router.refresh();
+    } catch { setMsg("Falha de conexão."); }
+    setSaving(false);
+  }
+
+  return (
+    <Caixa cor={s.cor} titulo="Armazenamento" resumo={resumo}>
+      <div style={{ paddingTop: 10 }}>
+        {pct != null ? (
+          <>
+            <div className="hbar-track" style={{ height: 8 }}><div className="hbar-fill" style={{ width: pct + "%", background: corBarra }} /></div>
+            <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 6 }}>
+              Usando <b style={{ color: "var(--text)" }}>{GB(s.usoGb)}</b> de <b>{GB(s.limiteGb)}</b> ({pct.toFixed(0)}%).
+              {custoAtual != null && <> Esse limite custa <b style={{ color: "var(--text)" }}>{BRL(custoAtual)}/mês</b>.</>}
+              {s.armazCompartilhadoSupabase && <span style={{ color: "var(--faint)" }}> Uso lido do banco Supabase (compartilhado entre os sistemas que usam esse banco).</span>}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 12, color: "var(--muted)" }}>
+            {s.usoGb != null ? <>Uso atual: <b style={{ color: "var(--text)" }}>{GB(s.usoGb)}</b>. </> : "Uso não medido para este sistema. "}
+            Defina o limite comprado abaixo para ver quanto custa e o quanto está sendo usado.
+          </div>
+        )}
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
+          <div><label style={lbl}>Limite comprado (GB)</label><input style={inp} type="number" min={0} value={limite} onChange={(e) => setLimite(e.target.value)} placeholder="ex.: 20" /></div>
+          <div><label style={lbl}>Custo por GB (R$/mês)</label><input style={inp} type="number" min={0} step="0.01" value={custoGb} onChange={(e) => setCustoGb(e.target.value)} placeholder="ex.: 0,67" /></div>
+        </div>
+        <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8 }}>
+          Com <b style={{ color: "var(--text)" }}>{limiteN || 0} GB</b> a {BRL(custoGbN)}/GB, o custo fica <b style={{ color: s.cor }}>{BRL(custoNovo)}/mês</b>.
+          {custoAtual != null && custoNovo !== custoAtual && <> (hoje: {BRL(custoAtual)})</>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+          <button type="button" onClick={salvar} disabled={saving}
+            style={{ background: s.cor, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+            {saving ? "Salvando…" : "Salvar / liberar GB"}
+          </button>
+          {msg && <span style={{ fontSize: 12.5, color: msg === "Salvo!" ? "var(--good)" : "var(--crit)" }}>{msg}</span>}
+        </div>
+      </div>
+    </Caixa>
+  );
+}
+
+function diasAteExpirar(iso: string | null): number | null {
+  if (!iso) return null;
+  const d = new Date(iso + "T00:00:00");
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.ceil((d.getTime() - Date.now()) / 86400000);
+}
+
+function TokenBox(s: SistemaCardData) {
+  const router = useRouter();
+  const [nome, setNome] = useState(s.tokenNome || "");
+  const [expira, setExpira] = useState(s.tokenExpira);
+  const [data, setData] = useState(s.tokenExpiraEm || "");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const dias = s.tokenExpira ? diasAteExpirar(s.tokenExpiraEm) : null;
+  let resumo: React.ReactNode;
+  if (!s.tokenNome) resumo = <span style={{ color: "var(--warn)" }}>configurar</span>;
+  else if (!s.tokenExpira) resumo = <span style={{ color: "var(--good)" }}>vitalício</span>;
+  else if (dias == null) resumo = <span style={{ color: "var(--muted)" }}>expira (sem data)</span>;
+  else if (dias < 0) resumo = <span style={{ color: "var(--crit)" }}>expirado</span>;
+  else {
+    const cor = dias <= 7 ? "var(--crit)" : dias <= 30 ? "var(--warn)" : "var(--muted)";
+    resumo = <span style={{ color: cor }}>expira em {dias}d</span>;
+  }
+
+  async function salvar() {
+    setMsg(""); setSaving(true);
+    try {
+      const r = await fetch("/api/sistemas/detalhes", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sistemaId: s.id, tokenNome: nome || null, tokenExpira: expira, tokenExpiraEm: expira ? (data || null) : null }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMsg(j.error || "Não foi possível salvar."); setSaving(false); return; }
+      setMsg("Salvo!"); router.refresh();
+    } catch { setMsg("Falha de conexão."); }
+    setSaving(false);
+  }
+
+  return (
+    <Caixa cor={s.cor} titulo="Token / chave" resumo={resumo}>
+      <div style={{ paddingTop: 10 }}>
+        {s.tokenNome && (
+          <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 10 }}>
+            Token: <b className="num" style={{ color: "var(--text)", fontFamily: "var(--mono)" }}>{s.tokenNome}</b>.{" "}
+            {s.tokenExpira
+              ? (s.tokenExpiraEm
+                  ? <>Expira em <b style={{ color: dias != null && dias <= 30 ? "var(--warn)" : "var(--text)" }}>{new Date(s.tokenExpiraEm + "T00:00:00").toLocaleDateString("pt-BR")}</b>{dias != null && <> ({dias < 0 ? "vencido" : `faltam ${dias} dias`}) — renove antes de vencer.</>}</>
+                  : "Expira, mas sem data definida.")
+              : "É vitalício — não precisa renovar."}
+          </div>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+          <div><label style={lbl}>Qual token/chave (nome)</label><input style={inp} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="ex.: SUPABASE_MANAGEMENT_TOKEN" /></div>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text)", cursor: "pointer" }}>
+            <input type="checkbox" checked={expira} onChange={(e) => setExpira(e.target.checked)} />
+            Esse token expira (desmarcado = vitalício)
+          </label>
+          {expira && <div><label style={lbl}>Data de expiração</label><input style={inp} type="date" value={data} onChange={(e) => setData(e.target.value)} /></div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+          <button type="button" onClick={salvar} disabled={saving}
+            style={{ background: s.cor, color: "#fff", border: "none", borderRadius: 8, padding: "8px 14px", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+            {saving ? "Salvando…" : "Salvar"}
+          </button>
+          {msg && <span style={{ fontSize: 12.5, color: msg === "Salvo!" ? "var(--good)" : "var(--crit)" }}>{msg}</span>}
+        </div>
+      </div>
+    </Caixa>
+  );
+}
+
 export default function SistemaCard(s: SistemaCardData) {
   const [aberto, setAberto] = useState(false);
+  // Alerta de token no cabeçalho (mesmo fechado), pra chamar atenção.
+  const diasToken = s.tokenExpira ? diasAteExpirar(s.tokenExpiraEm) : null;
+  const alertaToken = diasToken != null && diasToken <= 30;
+
   return (
     <div className="card sys-card">
       <div className="sys-top">
@@ -41,6 +224,7 @@ export default function SistemaCard(s: SistemaCardData) {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <Pill s={s.statusPill} /><SourceTag source={s.source} />
+        {alertaToken && <span className="pill" style={{ color: diasToken! <= 7 ? "var(--crit)" : "var(--warn)", background: diasToken! <= 7 ? "var(--crit-soft)" : "var(--warn-soft)" }}>token {diasToken! < 0 ? "vencido" : `vence em ${diasToken}d`}</span>}
       </div>
 
       <div className="sys-stats" style={{ gridTemplateColumns: "repeat(2,1fr)" }}>
@@ -57,26 +241,31 @@ export default function SistemaCard(s: SistemaCardData) {
       </button>
 
       {aberto && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5, color: "var(--muted)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12.5, color: "var(--muted)" }}>
           {/* Financeiro do sistema, bem visível */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginBottom: 4 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12 }}>
             <div><div style={{ fontSize: 11, color: "var(--muted)" }}>Receita/mês</div><div className="num" style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{s.mrrText}</div></div>
             <div><div style={{ fontSize: 11, color: "var(--muted)" }}>Custo/mês</div><div className="num" style={{ fontSize: 15, fontWeight: 700, color: s.custoCor }}>{s.custoText}</div></div>
             <div><div style={{ fontSize: 11, color: "var(--muted)" }}>Lucro/mês</div><div className="num" style={{ fontSize: 15, fontWeight: 700, color: s.lucroCor }}>{s.lucroText}</div></div>
           </div>
 
+          {/* Armazenamento e Token clicáveis */}
+          <Armazenamento {...s} />
+          <TokenBox {...s} />
+
           <a href={`/acessos?sistema=${s.id}`}
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 13, fontWeight: 600, textDecoration: "none", marginBottom: 4 }}>
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, background: "var(--panel-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 12px", color: "var(--text)", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
             <span>Ver acessos & logins {s.contas != null ? `(${s.contas})` : ""}</span>
             <span style={{ color: s.cor }}>→</span>
           </a>
 
-          <Linha k="Hospedagem"><b style={{ color: "var(--text)" }}>{s.hostLabel}</b></Linha>
-          <Linha k="Repositório"><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.repo || "—"}</span></Linha>
-          <Linha k="Supabase"><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.supabaseRef || "—"}</span></Linha>
-          <Linha k="Último deploy">{s.ultimoDeploy || "sem dados"}</Linha>
-          <Linha k="Banco de dados"><span style={{ color: s.bancoCor, fontWeight: 600 }}>{s.bancoNome}</span></Linha>
-          <Linha k="Custo infra / mês"><span className="num" style={{ fontWeight: 650, color: s.custoCor }}>{s.custoText}</span></Linha>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 2 }}>
+            <Linha k="Hospedagem"><b style={{ color: "var(--text)" }}>{s.hostLabel}</b></Linha>
+            <Linha k="Repositório"><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.repo || "—"}</span></Linha>
+            <Linha k="Supabase"><span className="num" style={{ fontFamily: "var(--mono)" }}>{s.supabaseRef || "—"}</span></Linha>
+            <Linha k="Último deploy">{s.ultimoDeploy || "sem dados"}</Linha>
+            <Linha k="Banco de dados"><span style={{ color: s.bancoCor, fontWeight: 600 }}>{s.bancoNome}</span></Linha>
+          </div>
 
           {s.bugs.length > 0 && (
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 4, display: "flex", flexDirection: "column", gap: 8 }}>
