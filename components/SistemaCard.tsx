@@ -18,7 +18,7 @@ export type SistemaCardData = {
   // Armazenamento
   usoGb: number | null; limiteGb: number | null; custoPorGbBrl: number | null;
   armazCompartilhadoSupabase: boolean;
-  breakdown: { empresa: string; gb: number }[];
+  breakdown: { empresa: string; gb: number; limite: number | null }[];
   // Token
   tokenNome: string | null; tokenExpira: boolean; tokenExpiraEm: string | null;
   bugs: { sev: string; t: string; d: string; st: string }[];
@@ -128,14 +128,20 @@ function Armazenamento(s: SistemaCardData) {
             </div>
             {s.breakdown.map((e, i) => {
               const custoEmp = s.custoPorGbBrl != null ? e.gb * s.custoPorGbBrl : null;
-              const pctEmp = s.usoGb ? Math.min(100, (e.gb / s.usoGb) * 100) : 0;
+              // Barra = uso dentro do limite da empresa (quando tem); senão, fatia do total do sistema.
+              const temLimite = e.limite != null && e.limite > 0;
+              const pctEmp = temLimite ? Math.min(100, (e.gb / (e.limite as number)) * 100) : (s.usoGb ? Math.min(100, (e.gb / s.usoGb) * 100) : 0);
+              const corEmp = temLimite ? (pctEmp >= 100 ? "var(--crit)" : pctEmp >= 80 ? "var(--warn)" : "var(--good)") : s.cor;
               return (
                 <div key={i} style={{ padding: "8px 10px", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--text)", textTransform: "capitalize", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.empresa}</span>
-                    <span className="num" style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap" }}>{tam(e.gb)}{custoEmp != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}> · {BRL(custoEmp)}</span>}</span>
+                    <span className="num" style={{ fontSize: 12.5, fontWeight: 650, whiteSpace: "nowrap" }}>
+                      {tam(e.gb)}{temLimite && <span style={{ color: "var(--muted)", fontWeight: 500 }}> de {tam(e.limite as number)}</span>}
+                      {custoEmp != null && <span style={{ color: "var(--muted)", fontWeight: 500 }}> · {BRL(custoEmp)}</span>}
+                    </span>
                   </div>
-                  <div className="hbar-track" style={{ height: 5 }}><div className="hbar-fill" style={{ width: pctEmp + "%", background: s.cor }} /></div>
+                  <div className="hbar-track" style={{ height: 5 }}><div className="hbar-fill" style={{ width: pctEmp + "%", background: corEmp }} /></div>
                 </div>
               );
             })}
