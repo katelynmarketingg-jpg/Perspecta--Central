@@ -13,13 +13,18 @@ Abra `index.html` ou sirva a pasta (`python3 -m http.server`) — publica em qua
 7. **Projetos** — galeria horizontal.
 8. **Contato** — link de contato + Instagram.
 
-## Trocar as imagens provisórias (pasta `assets/`)
-| Arquivo | O que é |
-|---|---|
-| `casa-fachada.svg` → foto da barn house (ideal ≥ 3000px de largura) | hero + início do Refúgio |
-| `interior.svg` → foto do interior da mesma casa | Refúgio, vídeo (poster) |
-| `video.mp4` | seção "Sua casa tem cara de sua?" (mudo, 10–20s, < 8 MB) |
+## Fotos (pasta `assets/`)
+Enquanto um `.jpg` não existir, o site mostra o desenho `.svg` provisório no lugar.
 
-Ao trocar, ajuste o caminho no `index.html` e o `data-focus` (ponto para onde o zoom vai, ex. `"40% 68%"`).
+| Arquivo | Onde aparece |
+|---|---|
+| `drone-longe.jpg` | abertura: voo aéreo descendo até a casa (opcional; sem ele o zoom usa só a fachada) |
+| `casa-fachada.jpg` | abertura (fim do voo) + início do Refúgio |
+| `interior.jpg` | Refúgio (passagem para dentro) + fundo do vídeo |
+| `socias.jpg` | Quem somos |
+| `cozinha.jpg`, `quarto.jpg` | galeria de projetos |
+| `video.mp4` | "Sua casa tem cara de sua?" (mudo, 10–20s, < 8 MB) |
+
+Use JPG com 2400–3500px de largura. O ponto para onde o zoom vai é o `data-focus` no `index.html`.
 
 Cores ficam em variáveis no topo de `styles.css` (paleta tirada dos destaques do Instagram).

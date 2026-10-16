@@ -36,7 +36,11 @@
       <div class="sticky">
         <div class="hero-sky"></div>
         <!-- Ponto de foco do zoom (porta/entrada da casa): ajuste data-focus -->
-        <div class="hero-media" data-focus="40% 68%">
+        <!-- Voo de drone: foto aérea (longe) → foto da fachada (perto). data-focus = para onde a câmera vai -->
+        <div class="hero-media hero-aerial" data-focus="50% 55%">
+          <img src="assets/drone-longe.jpg" onerror="this.closest('.hero-aerial').remove()" alt="" aria-hidden="true" />
+        </div>
+        <div class="hero-media hero-near" data-focus="40% 68%">
           <img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Fachada de uma barn house projetada pela Espacio" />
         </div>
         <div class="hero-haze"></div>

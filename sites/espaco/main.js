@@ -149,11 +149,12 @@
 
   const nav = $("#nav");
   const hero = $(".hero");
-  const heroMedia = $(".hero-media");
+  const heroNear = $(".hero-near");
+  const heroAerial = () => $(".hero-aerial"); // some se a foto aérea não existir
   const heroCopy = $(".hero-copy");
   const heroHaze = $(".hero-haze");
   const heroHint = $(".scroll-hint");
-  heroMedia.style.transformOrigin = heroMedia.dataset.focus || "50% 60%";
+  $$(".hero-media").forEach((m) => (m.style.transformOrigin = m.dataset.focus || "50% 60%"));
 
   const manifesto = $(".manifesto");
   const words = $$(".manifesto .w");
@@ -189,18 +190,26 @@
     {
       const s = progress(hero);
       const p = reduce ? 1 : 0.32 * easeOut(introT) + 0.68 * s;
-      // janela que se abre (casa vista ao longe, como um quadro)
-      const open = easeInOut(range(p, 0, 0.45));
-      const insetY = lerp(30, 0, open);
-      const insetX = lerp(34, 0, open);
-      const radius = lerp(18, 0, open);
-      // zoom contínuo: afasta → chega perto
-      const zoom = lerp(1, 1.85, easeInOut(range(p, 0.3, 1)));
-      const scaleFar = lerp(0.82, 1, open);
-      const blur = lerp(3, 0, range(p, 0, 0.4));
-      heroMedia.style.clipPath = `inset(${insetY}% ${insetX}% round ${radius}px)`;
-      heroMedia.style.transform = `scale(${scaleFar * zoom})`;
-      heroMedia.style.filter = blur > 0.05 ? `blur(${blur}px) saturate(${lerp(0.8, 1.05, open)})` : "none";
+      const aerial = heroAerial();
+      if (aerial) {
+        // 1º trecho: voo aéreo descendo em direção à casa
+        const fly = easeInOut(range(p, 0, 0.5));
+        aerial.style.transform = `scale(${lerp(1.08, 2.6, fly)}) translate3d(0, ${lerp(-2, 3, fly)}%, 0)`;
+        aerial.style.filter = `blur(${lerp(0, 2.5, range(p, 0.38, 0.5))}px)`;
+        // passagem: a aérea dissolve e entra a fachada em alta
+        const cross = range(p, 0.38, 0.52);
+        aerial.style.opacity = 1 - cross;
+        heroNear.style.opacity = cross;
+        const near = easeInOut(range(p, 0.38, 1));
+        heroNear.style.transform = `scale(${lerp(1.25, 1.75, near)})`;
+        heroNear.style.filter = `blur(${lerp(3, 0, cross)}px)`;
+      } else {
+        // sem foto aérea: aproximação contínua só com a fachada
+        const near = easeInOut(p);
+        heroNear.style.opacity = 1;
+        heroNear.style.transform = `scale(${lerp(1.02, 1.9, near)})`;
+        heroNear.style.filter = "none";
+      }
       heroHaze.style.opacity = 1 - range(p, 0, 0.5);
       const out = range(s, 0.55, 0.9);
       heroCopy.style.opacity = 1 - out;
