@@ -149,12 +149,12 @@
 
   const nav = $("#nav");
   const hero = $(".hero");
-  const heroNear = $(".hero-near");
-  const heroAerial = () => $(".hero-aerial"); // some se a foto aérea não existir
+  const heroFrame = $(".hero-frame");
+  const heroImg = heroFrame.querySelector("img");
+  const PHOTO_RATIO = 942 / 1518; // proporção da foto de drone (vertical)
   const heroCopy = $(".hero-copy");
-  const heroHaze = $(".hero-haze");
   const heroHint = $(".scroll-hint");
-  $$(".hero-media").forEach((m) => (m.style.transformOrigin = m.dataset.focus || "50% 60%"));
+  heroImg.style.objectPosition = heroImg.style.transformOrigin = heroFrame.dataset.focus || "50% 60%";
 
   const manifesto = $(".manifesto");
   const words = $$(".manifesto .w");
@@ -165,7 +165,6 @@
 
   const refuge = $(".refuge");
   const outside = $(".refuge-outside");
-  const inside = $(".refuge-inside");
   const steps = $$(".refuge-step");
   const refugeBar = $(".refuge-progress span");
   outside.style.transformOrigin = outside.dataset.focus || "50% 60%";
@@ -190,27 +189,17 @@
     {
       const s = progress(hero);
       const p = reduce ? 1 : 0.32 * easeOut(introT) + 0.68 * s;
-      const aerial = heroAerial();
-      if (aerial) {
-        // 1º trecho: voo aéreo descendo em direção à casa
-        const fly = easeInOut(range(p, 0, 0.5));
-        aerial.style.transform = `scale(${lerp(1.08, 2.6, fly)}) translate3d(0, ${lerp(-2, 3, fly)}%, 0)`;
-        aerial.style.filter = `blur(${lerp(0, 2.5, range(p, 0.38, 0.5))}px)`;
-        // passagem: a aérea dissolve e entra a fachada em alta
-        const cross = range(p, 0.38, 0.52);
-        aerial.style.opacity = 1 - cross;
-        heroNear.style.opacity = cross;
-        const near = easeInOut(range(p, 0.38, 1));
-        heroNear.style.transform = `scale(${lerp(1.25, 1.75, near)})`;
-        heroNear.style.filter = `blur(${lerp(3, 0, cross)}px)`;
-      } else {
-        // sem foto aérea: aproximação contínua só com a fachada
-        const near = easeInOut(p);
-        heroNear.style.opacity = 1;
-        heroNear.style.transform = `scale(${lerp(1.02, 1.9, near)})`;
-        heroNear.style.filter = "none";
-      }
-      heroHaze.style.opacity = 1 - range(p, 0, 0.5);
+      // de longe: a foto inteira num quadro vertical, como a tela do drone
+      // perto: o quadro se abre até tela cheia e a câmera continua chegando na casa
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const h0 = Math.min(vh * 0.74, (vw * 0.82) / PHOTO_RATIO), w0 = h0 * PHOTO_RATIO;
+      const open = easeInOut(range(p, 0, 0.55));
+      heroFrame.style.width = `${lerp(w0, vw, open)}px`;
+      heroFrame.style.height = `${lerp(h0, vh, open)}px`;
+      heroFrame.style.borderRadius = `${lerp(4, 0, open)}px`;
+      // zoom final menor em tela larga: a foto é vertical e já é ampliada para cobrir a largura
+      const maxZoom = vw > vh ? 1.18 : 1.5;
+      heroImg.style.transform = `scale(${lerp(1, maxZoom, easeInOut(range(p, 0.45, 1)))})`;
       const out = range(s, 0.55, 0.9);
       heroCopy.style.opacity = 1 - out;
       heroCopy.style.transform = `translateY(${-out * 80}px)`;
@@ -238,15 +227,23 @@
     /* 5. REFÚGIO — fora → janela → dentro, depois caminhada pelo interior */
     {
       const p = progress(refuge);
-      // aproxima a fachada até a janela
-      const zIn = easeInOut(range(p, 0, 0.4));
-      outside.style.transform = `scale(${lerp(1.05, 3.2, zIn)})`;
-      outside.style.opacity = 1 - range(p, 0.3, 0.42);
-      // atravessa a janela: interior aparece já "perto" e a câmera percorre o ambiente
-      const cross = range(p, 0.3, 0.42);
-      const walk = easeInOut(range(p, 0.36, 1));
-      inside.style.opacity = cross;
-      inside.style.transform = `scale(${lerp(1.5, 1.15, cross) + walk * 0.18}) translate3d(${lerp(4, -5, walk)}%, ${lerp(1, -2, walk)}%, 0)`;
+      const inside = $(".refuge-inside"); // só existe se houver foto do interior
+      if (inside) {
+        // aproxima a fachada até a janela e atravessa para o interior
+        const zIn = easeInOut(range(p, 0, 0.4));
+        outside.style.transform = `scale(${lerp(1.05, 3.2, zIn)})`;
+        outside.style.opacity = 1 - range(p, 0.3, 0.42);
+        const cross = range(p, 0.3, 0.42);
+        const walk = easeInOut(range(p, 0.36, 1));
+        inside.style.opacity = cross;
+        inside.style.transform = `scale(${lerp(1.5, 1.15, cross) + walk * 0.18}) translate3d(${lerp(4, -5, walk)}%, ${lerp(1, -2, walk)}%, 0)`;
+      } else {
+        // sem interior: a câmera percorre a fachada devagar, do jardim até as janelas
+        const t = easeInOut(p);
+        const z = window.innerWidth > window.innerHeight ? 1.3 : 1.8;
+        outside.style.transform = `scale(${lerp(1.04, z, t)}) translate3d(${lerp(-2, 2, t)}%, ${lerp(2, -2, t)}%, 0)`;
+        outside.style.opacity = 1;
+      }
       steps.forEach((el) => el.classList.toggle("on", p >= +el.dataset.from && p < +el.dataset.to));
       refugeBar.style.transform = `scaleX(${p})`;
     }

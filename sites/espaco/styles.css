@@ -94,11 +94,12 @@ body:not(.is-loading) .intro-curtain { transform: translateY(-100%); }
 .hero { height: 340vh; background: var(--ink); }
 .hero .sticky { background: var(--ink); }
 .hero-sky { position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% 30%, #6d4a37 0%, #2a211c 70%); }
-.hero-media {
-  position: absolute; inset: 0;
-  will-change: transform, clip-path, filter;
+.hero-frame {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 100%; height: 100%; overflow: hidden; max-width: none;
+  box-shadow: 0 40px 120px rgba(0,0,0,.45);
 }
-.hero-media img { width: 100%; height: 100%; object-fit: cover; }
+.hero-frame img { width: 100%; height: 100%; object-fit: cover; will-change: transform; max-width: none; }
 .hero-haze {
   position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(234, 223, 210, .55), rgba(234, 223, 210, 0) 60%);
@@ -156,7 +157,10 @@ body.is-ready [data-split] .char { opacity: 1; transform: none; filter: none; }
 .team { padding: clamp(100px, 16vh, 180px) 0; }
 .section-head { margin-bottom: clamp(48px, 8vh, 90px); }
 .team-layout { display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(28px, 6vw, 100px); align-items: end; }
-.team-photo { aspect-ratio: 4/5; overflow: hidden; border-radius: 2px; background: var(--linen); max-width: 100%; }
+.team-photo { position: relative; aspect-ratio: 4/5; overflow: hidden; border-radius: 2px; background: var(--wine); max-width: 100%; display: grid; place-items: end start; }
+.team-photo blockquote { padding: clamp(24px, 4vw, 48px); color: var(--cream); font-size: clamp(1.8rem, 3.6vw, 3.2rem); font-weight: 200; line-height: 1.05; letter-spacing: -.02em; }
+.team-photo blockquote em { color: var(--sand); }
+.team-photo img { position: absolute; inset: 0; z-index: 1; }
 .team-photo img { width: 100%; height: 116%; object-fit: cover; will-change: transform; }
 .team-people { display: grid; gap: clamp(32px, 6vh, 64px); }
 .person { border-top: 1px solid rgba(42,33,28,.18); padding-top: 1.4rem; }

@@ -14,17 +14,16 @@ Abra `index.html` ou sirva a pasta (`python3 -m http.server`) — publica em qua
 8. **Contato** — link de contato + Instagram.
 
 ## Fotos (pasta `assets/`)
-Enquanto um `.jpg` não existir, o site mostra o desenho `.svg` provisório no lugar.
+Todas as imagens são de uma obra real da Espacio (quadro de vídeo de drone, ampliado 4x com super-resolução EDSR).
 
 | Arquivo | Onde aparece |
 |---|---|
-| `drone-longe.jpg` | abertura: voo aéreo descendo até a casa (opcional; sem ele o zoom usa só a fachada) |
-| `casa-fachada.jpg` | abertura (fim do voo) + início do Refúgio |
-| `interior.jpg` | Refúgio (passagem para dentro) + fundo do vídeo |
-| `socias.jpg` | Quem somos |
-| `cozinha.jpg`, `quarto.jpg` | galeria de projetos |
-| `video.mp4` | "Sua casa tem cara de sua?" (mudo, 10–20s, < 8 MB) |
+| `casa-fachada.jpg` | abertura (quadro vertical que se abre até tela cheia) + Refúgio + galeria |
+| `entrada.jpg`, `deck.jpg`, `cobertura.jpg` | recortes de detalhe da mesma obra (galeria e seção do vídeo) |
+| `interior.jpg` | opcional: se existir, o Refúgio atravessa a janela para dentro da casa |
+| `socias.jpg` | opcional: foto das sócias; sem ela aparece a frase "antes de projetar, a gente escuta" |
+| `video.mp4` | opcional: "Sua casa tem cara de sua?" (mudo, 10–20s, < 8 MB) |
 
-Use JPG com 2400–3500px de largura. O ponto para onde o zoom vai é o `data-focus` no `index.html`.
+O ponto para onde o zoom vai é o `data-focus` no `index.html`. Para nitidez máxima no desktop, troque pelo vídeo/foto original em resolução cheia.
 
 Cores ficam em variáveis no topo de `styles.css` (paleta tirada dos destaques do Instagram).

@@ -36,14 +36,11 @@
       <div class="sticky">
         <div class="hero-sky"></div>
         <!-- Ponto de foco do zoom (porta/entrada da casa): ajuste data-focus -->
-        <!-- Voo de drone: foto aérea (longe) → foto da fachada (perto). data-focus = para onde a câmera vai -->
-        <div class="hero-media hero-aerial" data-focus="50% 55%">
-          <img src="assets/drone-longe.jpg" onerror="this.closest('.hero-aerial').remove()" alt="" aria-hidden="true" />
+        <!-- Foto real de drone (obra da Espacio). Começa num quadro vertical "de longe" e se abre até tela cheia,
+             aproximando da casa. data-focus = ponto da casa para onde a câmera vai -->
+        <div class="hero-frame" data-focus="50% 60%">
+          <img src="assets/casa-fachada.jpg" alt="Residência projetada pela Espacio, vista de drone" />
         </div>
-        <div class="hero-media hero-near" data-focus="40% 68%">
-          <img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Fachada de uma barn house projetada pela Espacio" />
-        </div>
-        <div class="hero-haze"></div>
         <div class="hero-vignette"></div>
 
         <div class="hero-copy">
@@ -89,7 +86,7 @@
           <video autoplay muted loop playsinline preload="metadata">
             <source src="assets/video.mp4" type="video/mp4" />
           </video>
-          <img class="video-fallback" src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="" aria-hidden="true" />
+          <img class="video-fallback" src="assets/cobertura.jpg" alt="" aria-hidden="true" />
         </div>
       </div>
     </section>
@@ -103,7 +100,7 @@
           <p class="lead">A Espacio nasceu em 2008 com a ideia de construir projetos mais humanos, pensados para a vida real. Mais do que desenhar espaços, nosso trabalho é traduzir pessoas em arquitetura.</p>
         </div>
         <div class="team-layout">
-          <div class="team-photo wipe" data-parallax="0.08"><img src="assets/socias.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="As sócias da Espacio" /></div>
+          <div class="team-photo wipe" data-parallax="0.08"><img src="assets/socias.jpg" onerror="this.remove()" alt="As sócias da Espacio" /><blockquote>antes de projetar,<br>a gente <em>escuta.</em></blockquote></div>
           <div class="team-people">
             <article class="person reveal-up">
               <span class="person-tag">Arq</span>
@@ -125,11 +122,11 @@
     <!-- 5. REFÚGIO — de fora para dentro / de dentro para fora -->
     <section class="refuge" id="refugio" data-scene="refuge">
       <div class="sticky">
-        <div class="refuge-layer refuge-outside" data-focus="40% 66%">
-          <img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Fachada da casa" />
+        <div class="refuge-layer refuge-outside" data-focus="68% 61%">
+          <img src="assets/casa-fachada.jpg" alt="Fachada da residência" />
         </div>
         <div class="refuge-layer refuge-inside">
-          <img src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Interior da mesma casa" />
+          <img src="assets/interior.jpg" onerror="this.closest('.refuge-inside').remove()" alt="Interior da residência" />
         </div>
         <div class="refuge-shade"></div>
 
@@ -175,10 +172,10 @@
           <h2>Espaços <em>com alma.</em></h2>
         </div>
         <div class="projects-track">
-          <figure class="project"><div class="project-img"><img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Barn House" /></div><figcaption>Barn House <span>Residencial</span></figcaption></figure>
-          <figure class="project tall"><div class="project-img"><img src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Living da Barn House" /></div><figcaption>Living da Barn House <span>Interiores</span></figcaption></figure>
-          <figure class="project"><div class="project-img"><img src="assets/cozinha.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Cozinha em freijó" /></div><figcaption>Cozinha em freijó <span>Interiores</span></figcaption></figure>
-          <figure class="project tall"><div class="project-img"><img src="assets/quarto.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Suíte" /></div><figcaption>Suíte <span>Interiores</span></figcaption></figure>
+          <figure class="project"><div class="project-img"><img src="assets/casa-fachada.jpg" alt="Residência" /></div><figcaption>Residência <span>Arquitetura</span></figcaption></figure>
+          <figure class="project tall"><div class="project-img"><img src="assets/entrada.jpg" alt="Pilar de pedra e portas em madeira" /></div><figcaption>Pilar de pedra e portas em madeira <span>Detalhe</span></figcaption></figure>
+          <figure class="project"><div class="project-img"><img src="assets/deck.jpg" alt="Deck e escada para o jardim" /></div><figcaption>Deck e escada para o jardim <span>Detalhe</span></figcaption></figure>
+          <figure class="project tall"><div class="project-img"><img src="assets/cobertura.jpg" alt="Telhado e esquadrias" /></div><figcaption>Telhado e esquadrias <span>Detalhe</span></figcaption></figure>
         </div>
       </div>
     </section>
