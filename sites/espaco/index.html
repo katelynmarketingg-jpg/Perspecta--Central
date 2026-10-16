@@ -11,10 +11,13 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Cortina de abertura -->
+  <!-- Abertura: contador + cortina -->
   <div class="intro-curtain" aria-hidden="true">
     <span class="intro-mark">espacio<small>arq & design</small></span>
+    <span class="intro-count"><b id="count">0</b>%</span>
   </div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor" aria-hidden="true"><span>arraste</span></div>
 
   <header class="nav" id="nav">
     <a href="#topo" class="brand">espacio<span>arq & design</span></a>
@@ -34,16 +37,20 @@
         <div class="hero-sky"></div>
         <!-- Ponto de foco do zoom (porta/entrada da casa): ajuste data-focus -->
         <div class="hero-media" data-focus="40% 68%">
-          <img src="assets/casa-fachada.svg" alt="Fachada de uma casa projetada pelo escritório" />
+          <img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Fachada de uma barn house projetada pela Espacio" />
         </div>
         <div class="hero-haze"></div>
         <div class="hero-vignette"></div>
 
         <div class="hero-copy">
-          <p class="eyebrow reveal-up">Arquitetura & Design de Interiores · desde 2008</p>
+          <p class="eyebrow reveal-up">( desde 2008 )</p>
           <h1 class="hero-title" data-split>Criamos espaços<br /><em>para viver.</em></h1>
         </div>
-        <div class="scroll-hint"><span></span>role para entrar</div>
+        <div class="hero-meta">
+          <span>Santo Antônio da Patrulha — RS</span>
+          <span class="scroll-hint"><i></i>role para entrar</span>
+          <span>Arquitetura · Interiores</span>
+        </div>
       </div>
     </section>
 
@@ -57,6 +64,13 @@
       </div>
     </section>
 
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>ouvindo <em>·</em> acolhendo <em>·</em> projetando <em>·</em> casa com cara de casa <em>·</em></span>
+        <span>ouvindo <em>·</em> acolhendo <em>·</em> projetando <em>·</em> casa com cara de casa <em>·</em></span>
+      </div>
+    </div>
+
     <!-- 3. SUA CASA TEM CARA DE SUA? -->
     <section class="identity" data-scene="video">
       <div class="sticky">
@@ -68,10 +82,10 @@
         </h2>
         <div class="video-frame">
           <!-- Coloque o vídeo em assets/video.mp4 (ideal: 1080p, sem som, 10–20s, < 8 MB) -->
-          <video autoplay muted loop playsinline preload="metadata" poster="assets/interior.svg">
+          <video autoplay muted loop playsinline preload="metadata">
             <source src="assets/video.mp4" type="video/mp4" />
           </video>
-          <img class="video-fallback" src="assets/interior.svg" alt="" aria-hidden="true" />
+          <img class="video-fallback" src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="" aria-hidden="true" />
         </div>
       </div>
     </section>
@@ -84,19 +98,22 @@
           <h2>Arq + Design, <em>juntas</em> no mesmo lugar.</h2>
           <p class="lead">A Espacio nasceu em 2008 com a ideia de construir projetos mais humanos, pensados para a vida real. Mais do que desenhar espaços, nosso trabalho é traduzir pessoas em arquitetura.</p>
         </div>
-        <div class="team-grid">
-          <article class="person reveal-up">
-            <div class="person-photo" data-parallax="0.12"><img src="assets/interior.svg" alt="Foto da sócia 1" /></div>
-            <h3>Carolina Selistre</h3>
-            <p class="role">Arquiteta & Urbanista</p>
-            <a class="handle" href="https://www.instagram.com/carolinaselistre_arq_e_urb/" target="_blank" rel="noopener">@carolinaselistre_arq_e_urb</a>
-          </article>
-          <article class="person reveal-up" style="--d:.15s">
-            <div class="person-photo" data-parallax="-0.12"><img src="assets/casa-fachada.svg" alt="Foto da sócia 2" /></div>
-            <h3>Nome da Sócia 2</h3>
-            <p class="role">Designer de Interiores</p>
-            <a class="handle" href="#" target="_blank" rel="noopener">@arroba2</a>
-          </article>
+        <div class="team-layout">
+          <div class="team-photo wipe" data-parallax="0.08"><img src="assets/socias.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="As sócias da Espacio" /></div>
+          <div class="team-people">
+            <article class="person reveal-up">
+              <span class="person-tag">Arq</span>
+              <h3>Carolina Selistre</h3>
+              <p class="role">Arquiteta & Urbanista</p>
+              <a class="handle" href="https://www.instagram.com/carolinaselistre_arq_e_urb/" target="_blank" rel="noopener">@carolinaselistre_arq_e_urb</a>
+            </article>
+            <article class="person reveal-up" style="--d:.15s">
+              <span class="person-tag">Design</span>
+              <h3>Nome da Sócia 2</h3>
+              <p class="role">Designer de Interiores</p>
+              <a class="handle" href="#" target="_blank" rel="noopener">@arroba2</a>
+            </article>
+          </div>
         </div>
       </div>
     </section>
@@ -105,10 +122,10 @@
     <section class="refuge" id="refugio" data-scene="refuge">
       <div class="sticky">
         <div class="refuge-layer refuge-outside" data-focus="40% 66%">
-          <img src="assets/casa-fachada.svg" alt="Fachada da casa" />
+          <img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Fachada da casa" />
         </div>
         <div class="refuge-layer refuge-inside">
-          <img src="assets/interior.svg" alt="Interior da mesma casa" />
+          <img src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Interior da mesma casa" />
         </div>
         <div class="refuge-shade"></div>
 
@@ -150,15 +167,14 @@
     <section class="projects" id="projetos" data-scene="horizontal">
       <div class="sticky">
         <div class="projects-head">
-          <p class="eyebrow">Projetos</p>
+          <p class="eyebrow">Projetos selecionados</p>
           <h2>Espaços <em>com alma.</em></h2>
         </div>
         <div class="projects-track">
-          <figure class="project"><img src="assets/casa-fachada.svg" alt="" /><figcaption>Casa 01 <span>Residencial · 2024</span></figcaption></figure>
-          <figure class="project tall"><img src="assets/interior.svg" alt="" /><figcaption>Living 02 <span>Interiores · 2023</span></figcaption></figure>
-          <figure class="project"><img src="assets/interior.svg" alt="" /><figcaption>Apartamento 03 <span>Interiores · 2023</span></figcaption></figure>
-          <figure class="project tall"><img src="assets/casa-fachada.svg" alt="" /><figcaption>Casa 04 <span>Residencial · 2022</span></figcaption></figure>
-          <figure class="project"><img src="assets/interior.svg" alt="" /><figcaption>Cozinha 05 <span>Interiores · 2022</span></figcaption></figure>
+          <figure class="project"><div class="project-img"><img src="assets/casa-fachada.jpg" onerror="this.onerror=null;this.src='assets/casa-fachada.svg'" alt="Barn House" /></div><figcaption>Barn House <span>Residencial</span></figcaption></figure>
+          <figure class="project tall"><div class="project-img"><img src="assets/interior.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Living da Barn House" /></div><figcaption>Living da Barn House <span>Interiores</span></figcaption></figure>
+          <figure class="project"><div class="project-img"><img src="assets/cozinha.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Cozinha em freijó" /></div><figcaption>Cozinha em freijó <span>Interiores</span></figcaption></figure>
+          <figure class="project tall"><div class="project-img"><img src="assets/quarto.jpg" onerror="this.onerror=null;this.src='assets/interior.svg'" alt="Suíte" /></div><figcaption>Suíte <span>Interiores</span></figcaption></figure>
         </div>
       </div>
     </section>
@@ -170,8 +186,8 @@
         <h2>Casa com <em>cara de casa.</em></h2>
         <p class="lead">Conte sua história. A gente escuta e transforma em projeto.</p>
         <div class="contact-actions">
-          <a class="btn" href="https://contatoespacioaqui.netlify.app" target="_blank" rel="noopener">Agendar uma conversa</a>
-          <a class="btn ghost" href="https://www.instagram.com/espaciosap/" target="_blank" rel="noopener">@espaciosap</a>
+          <a class="btn magnetic" href="https://contatoespacioaqui.netlify.app" target="_blank" rel="noopener">Agendar uma conversa</a>
+          <a class="btn ghost magnetic" href="https://www.instagram.com/espaciosap/" target="_blank" rel="noopener">@espaciosap</a>
         </div>
       </div>
     </section>
@@ -182,6 +198,7 @@
     <a href="https://www.instagram.com/espaciosap/" target="_blank" rel="noopener">@espaciosap</a>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
   <script src="main.js"></script>
 </body>
 </html>

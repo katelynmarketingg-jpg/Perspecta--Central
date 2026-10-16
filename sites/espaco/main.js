@@ -64,12 +64,22 @@
   document.body.classList.add("is-loading");
   let introStart = null;
   const INTRO_MS = reduce ? 0 : 3200;
+  const count = $("#count");
+  const open = () => {
+    document.body.classList.remove("is-loading");
+    document.body.classList.add("is-ready");
+    introStart = performance.now();
+  };
+  // contador 0 → 100 enquanto a página carrega, depois a cortina sobe
   const start = () => {
-    setTimeout(() => {
-      document.body.classList.remove("is-loading");
-      document.body.classList.add("is-ready");
-      introStart = performance.now();
-    }, reduce ? 0 : 900);
+    if (reduce || !count) return open();
+    const t0 = performance.now(), dur = 1300;
+    const tick = (now) => {
+      const t = clamp((now - t0) / dur);
+      count.textContent = Math.round(easeOut(t) * 100);
+      t < 1 ? requestAnimationFrame(tick) : setTimeout(open, 180);
+    };
+    requestAnimationFrame(tick);
   };
   if (document.readyState === "complete") start();
   else window.addEventListener("load", start);
@@ -86,7 +96,49 @@
     (entries) => entries.forEach((e) => e.isIntersecting && (e.target.classList.add("in"), io.unobserve(e.target))),
     { threshold: 0.18 }
   );
-  $$(".reveal-up").forEach((el) => io.observe(el));
+  $$(".reveal-up, .wipe").forEach((el) => io.observe(el));
+
+  /* --- Rolagem suave (Lenis), se carregou --- */
+  let lenis = null;
+  if (!reduce && window.Lenis) {
+    lenis = new Lenis({ duration: 1.25, easing: (t) => 1 - Math.pow(1 - t, 4), smoothWheel: true });
+    $$('a[href^="#"]').forEach((a) =>
+      a.addEventListener("click", (e) => {
+        const target = $(a.getAttribute("href"));
+        if (target) { e.preventDefault(); lenis.scrollTo(target, { offset: 0 }); }
+      })
+    );
+  }
+
+  /* --- Cursor personalizado + botões magnéticos (desktop) --- */
+  const cursor = $(".cursor");
+  const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  if (cursor && fine && !reduce) {
+    let mx = -100, my = -100, cx = -100, cy = -100;
+    window.addEventListener("mousemove", (e) => { mx = e.clientX; my = e.clientY; cursor.classList.add("is-on"); });
+    document.addEventListener("mouseleave", () => cursor.classList.remove("is-on"));
+    const loop = () => {
+      cx += (mx - cx) * 0.18; cy += (my - cy) * 0.18;
+      cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0)`;
+      requestAnimationFrame(loop);
+    };
+    loop();
+    $$(".projects-track").forEach((el) => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("is-big"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("is-big"));
+    });
+    $$("a, button").forEach((el) => {
+      el.addEventListener("mouseenter", () => cursor.classList.add("is-link"));
+      el.addEventListener("mouseleave", () => cursor.classList.remove("is-link"));
+    });
+    $$(".magnetic").forEach((el) => {
+      el.addEventListener("mousemove", (e) => {
+        const r = el.getBoundingClientRect();
+        el.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.3}px, ${(e.clientY - r.top - r.height / 2) * 0.4}px)`;
+      });
+      el.addEventListener("mouseleave", () => (el.style.transform = ""));
+    });
+  }
 
   /* progresso de rolagem de uma seção "pinada" (0 → 1) */
   const progress = (section) => {
@@ -125,6 +177,7 @@
   let introT = reduce ? 1 : 0;
 
   const frame = (now) => {
+    if (lenis) lenis.raf(now);
     if (introStart !== null && introT < 1) introT = INTRO_MS ? clamp((now - introStart) / INTRO_MS) : 1;
     const vh = window.innerHeight;
 
