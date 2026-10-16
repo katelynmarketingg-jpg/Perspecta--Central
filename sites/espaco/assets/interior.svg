@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1500" preserveAspectRatio="xMidYMid slice">
+  <!-- PLACEHOLDER: substituir pela foto real do interior (interior.jpg) -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efe7dc"/><stop offset="1" stop-color="#e2d6c6"/></linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98d66"/><stop offset="1" stop-color="#8f6646"/></linearGradient>
+    <linearGradient id="view" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8dfdc"/><stop offset=".6" stop-color="#b9c0a5"/><stop offset="1" stop-color="#7f8a66"/></linearGradient>
+    <radialGradient id="lamp" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe7c2" stop-opacity=".9"/><stop offset="1" stop-color="#ffe7c2" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="2400" height="1500" fill="url(#wall)"/>
+  <rect y="1100" width="2400" height="400" fill="url(#floor)"/>
+  <rect x="900" y="260" width="1100" height="840" fill="url(#view)"/>
+  <g stroke="#2e2a25" stroke-width="10" fill="none"><rect x="900" y="260" width="1100" height="840"/><line x1="1450" y1="260" x2="1450" y2="1100"/></g>
+  <path d="M900 900 Q1150 820 1450 880 T2000 860 V1100 H900Z" fill="#6f7a5a" opacity=".7"/>
+  <rect x="300" y="200" width="420" height="560" fill="#d9cbb8"/>
+  <rect x="340" y="240" width="340" height="480" fill="#a86b4c" opacity=".35"/>
+  <!-- sofá -->
+  <rect x="520" y="930" width="900" height="200" rx="40" fill="#cdbfa9"/>
+  <rect x="520" y="860" width="900" height="120" rx="40" fill="#d9cdb9"/>
+  <rect x="560" y="1100" width="20" height="60" fill="#3f3a30"/><rect x="1360" y="1100" width="20" height="60" fill="#3f3a30"/>
+  <rect x="640" y="880" width="180" height="110" rx="24" fill="#a86b4c"/>
+  <!-- mesa de centro -->
+  <ellipse cx="1000" cy="1260" rx="300" ry="60" fill="#5a4332"/>
+  <!-- luminária -->
+  <line x1="1900" y1="0" x2="1900" y2="560" stroke="#2e2a25" stroke-width="4"/>
+  <circle cx="1900" cy="620" r="260" fill="url(#lamp)"/>
+  <path d="M1820 560 H1980 L1940 620 H1860Z" fill="#2e2a25"/>
+  <!-- planta -->
+  <rect x="2080" y="1000" width="130" height="150" fill="#d9cbb8"/>
+  <g fill="#5d6a4c"><ellipse cx="2145" cy="880" rx="70" ry="150"/><ellipse cx="2080" cy="930" rx="50" ry="110" transform="rotate(-25 2080 930)"/><ellipse cx="2210" cy="930" rx="50" ry="110" transform="rotate(25 2210 930)"/></g>
+</svg>

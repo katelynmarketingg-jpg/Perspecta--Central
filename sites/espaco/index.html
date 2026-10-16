@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Espacio — Arquitetura & Interiores</title>
+  <meta name="description" content="Criamos espaços para viver. Arquitetura e design de interiores desde 2008 — ouvindo, acolhendo e projetando." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Manrope:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Cortina de abertura -->
+  <div class="intro-curtain" aria-hidden="true">
+    <span class="intro-mark">espacio<small>arq & design</small></span>
+  </div>
+
+  <header class="nav" id="nav">
+    <a href="#topo" class="brand">espacio<span>arq & design</span></a>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="#manifesto">Sobre</a>
+      <a href="#quem-somos">Quem somos</a>
+      <a href="#refugio">Refúgio</a>
+      <a href="#projetos">Projetos</a>
+      <a href="#contato" class="nav-cta">Contato</a>
+    </nav>
+  </header>
+
+  <main>
+    <!-- 1. HERO — a casa de longe chegando perto -->
+    <section class="hero" id="topo" data-scene="hero">
+      <div class="sticky">
+        <div class="hero-sky"></div>
+        <!-- Ponto de foco do zoom (porta/entrada da casa): ajuste data-focus -->
+        <div class="hero-media" data-focus="40% 68%">
+          <img src="assets/casa-fachada.svg" alt="Fachada de uma casa projetada pelo escritório" />
+        </div>
+        <div class="hero-haze"></div>
+        <div class="hero-vignette"></div>
+
+        <div class="hero-copy">
+          <p class="eyebrow reveal-up">Arquitetura & Design de Interiores · desde 2008</p>
+          <h1 class="hero-title" data-split>Criamos espaços<br /><em>para viver.</em></h1>
+        </div>
+        <div class="scroll-hint"><span></span>role para entrar</div>
+      </div>
+    </section>
+
+    <!-- 2. MANIFESTO -->
+    <section class="manifesto" id="manifesto" data-scene="words">
+      <div class="sticky">
+        <p class="eyebrow">Nossa essência</p>
+        <p class="manifesto-text" data-words>
+          Desde 2008, <em>ouvindo</em>, <em>acolhendo</em> e <em>projetando.</em> Antes de projetar, a gente escuta — porque uma casa não precisa só ser bonita, ela precisa fazer sentido para quem vive nela.
+        </p>
+      </div>
+    </section>
+
+    <!-- 3. SUA CASA TEM CARA DE SUA? -->
+    <section class="identity" data-scene="video">
+      <div class="sticky">
+        <h2 class="identity-title">
+          <span class="line">Sua casa</span>
+          <span class="line"><em>tem cara</em></span>
+          <span class="line">de sua?</span>
+          <span class="identity-sub">ou é você que se adapta a ela…</span>
+        </h2>
+        <div class="video-frame">
+          <!-- Coloque o vídeo em assets/video.mp4 (ideal: 1080p, sem som, 10–20s, < 8 MB) -->
+          <video autoplay muted loop playsinline preload="metadata" poster="assets/interior.svg">
+            <source src="assets/video.mp4" type="video/mp4" />
+          </video>
+          <img class="video-fallback" src="assets/interior.svg" alt="" aria-hidden="true" />
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. QUEM SOMOS -->
+    <section class="team" id="quem-somos">
+      <div class="container">
+        <div class="section-head reveal-up">
+          <p class="eyebrow">Quem somos</p>
+          <h2>Arq + Design, <em>juntas</em> no mesmo lugar.</h2>
+          <p class="lead">A Espacio nasceu em 2008 com a ideia de construir projetos mais humanos, pensados para a vida real. Mais do que desenhar espaços, nosso trabalho é traduzir pessoas em arquitetura.</p>
+        </div>
+        <div class="team-grid">
+          <article class="person reveal-up">
+            <div class="person-photo" data-parallax="0.12"><img src="assets/interior.svg" alt="Foto da sócia 1" /></div>
+            <h3>Carolina Selistre</h3>
+            <p class="role">Arquiteta & Urbanista</p>
+            <a class="handle" href="https://www.instagram.com/carolinaselistre_arq_e_urb/" target="_blank" rel="noopener">@carolinaselistre_arq_e_urb</a>
+          </article>
+          <article class="person reveal-up" style="--d:.15s">
+            <div class="person-photo" data-parallax="-0.12"><img src="assets/casa-fachada.svg" alt="Foto da sócia 2" /></div>
+            <h3>Nome da Sócia 2</h3>
+            <p class="role">Designer de Interiores</p>
+            <a class="handle" href="#" target="_blank" rel="noopener">@arroba2</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. REFÚGIO — de fora para dentro / de dentro para fora -->
+    <section class="refuge" id="refugio" data-scene="refuge">
+      <div class="sticky">
+        <div class="refuge-layer refuge-outside" data-focus="40% 66%">
+          <img src="assets/casa-fachada.svg" alt="Fachada da casa" />
+        </div>
+        <div class="refuge-layer refuge-inside">
+          <img src="assets/interior.svg" alt="Interior da mesma casa" />
+        </div>
+        <div class="refuge-shade"></div>
+
+        <div class="refuge-steps">
+          <div class="refuge-step" data-from="0" data-to="0.3">
+            <p class="eyebrow">Um refúgio pensado</p>
+            <h2>De fora <em>para dentro.</em></h2>
+            <p>A luz, a paisagem e o entorno entram na casa e se tornam parte dela.</p>
+          </div>
+          <div class="refuge-step" data-from="0.4" data-to="0.68">
+            <p class="eyebrow">Cada detalhe importa</p>
+            <h2>De dentro <em>para fora.</em></h2>
+            <p>Os ambientes nascem da rotina, dos afetos e das memórias de quem vive ali.</p>
+          </div>
+          <div class="refuge-step" data-from="0.74" data-to="1.01">
+            <h2>Um lugar para <em>voltar</em> todos os dias.</h2>
+          </div>
+        </div>
+        <div class="refuge-progress"><span></span></div>
+      </div>
+    </section>
+
+    <!-- 6. COMO TRABALHAMOS -->
+    <section class="process">
+      <div class="container">
+        <div class="section-head reveal-up">
+          <p class="eyebrow">Como trabalhamos</p>
+          <h2>Um processo <em>feito de escuta.</em></h2>
+        </div>
+        <ol class="process-list">
+          <li class="reveal-up"><span>01</span><h3>Ouvir</h3><p>Entendemos sua rotina, seus desejos e o que faz você se sentir em casa.</p></li>
+          <li class="reveal-up" style="--d:.1s"><span>02</span><h3>Acolher</h3><p>Transformamos histórias em conceito, materiais, cores e sensações.</p></li>
+          <li class="reveal-up" style="--d:.2s"><span>03</span><h3>Projetar</h3><p>Do projeto arquitetônico ao último detalhe de interiores, acompanhamos tudo.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 7. PROJETOS — galeria horizontal -->
+    <section class="projects" id="projetos" data-scene="horizontal">
+      <div class="sticky">
+        <div class="projects-head">
+          <p class="eyebrow">Projetos</p>
+          <h2>Espaços <em>com alma.</em></h2>
+        </div>
+        <div class="projects-track">
+          <figure class="project"><img src="assets/casa-fachada.svg" alt="" /><figcaption>Casa 01 <span>Residencial · 2024</span></figcaption></figure>
+          <figure class="project tall"><img src="assets/interior.svg" alt="" /><figcaption>Living 02 <span>Interiores · 2023</span></figcaption></figure>
+          <figure class="project"><img src="assets/interior.svg" alt="" /><figcaption>Apartamento 03 <span>Interiores · 2023</span></figcaption></figure>
+          <figure class="project tall"><img src="assets/casa-fachada.svg" alt="" /><figcaption>Casa 04 <span>Residencial · 2022</span></figcaption></figure>
+          <figure class="project"><img src="assets/interior.svg" alt="" /><figcaption>Cozinha 05 <span>Interiores · 2022</span></figcaption></figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. CONTATO -->
+    <section class="contact" id="contato">
+      <div class="container reveal-up">
+        <p class="eyebrow">Vamos conversar</p>
+        <h2>Casa com <em>cara de casa.</em></h2>
+        <p class="lead">Conte sua história. A gente escuta e transforma em projeto.</p>
+        <div class="contact-actions">
+          <a class="btn" href="https://contatoespacioaqui.netlify.app" target="_blank" rel="noopener">Agendar uma conversa</a>
+          <a class="btn ghost" href="https://www.instagram.com/espaciosap/" target="_blank" rel="noopener">@espaciosap</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>Espacio Arquitetura & Interiores © <span id="ano"></span> · Santo Antônio da Patrulha/RS</span>
+    <a href="https://www.instagram.com/espaciosap/" target="_blank" rel="noopener">@espaciosap</a>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
